@@ -40,7 +40,7 @@ if remap_to:
         remap_to = remap_to.upper()
         call("subst " + remap_to.upper()+": "+install_folder)
         print(f"{install_folder} is remapped to {remap_to} unit")
-        install_folder = remap_to+":"
+        install_folder = remap_to+":\\"
     except:
         print(f"An error has occurred while remapping {install_folder} to {remap_to} unit")
         exit()
@@ -89,13 +89,16 @@ call(os.path.join(embedded_python_folder, "python.exe") + " " + os.path.join(emb
 
 call(os.path.join(embedded_python_folder, "Scripts", "pip") + " install bleeding-rez --no-warn-script-location")
 
+if not os.path.exists(os.path.join(embedded_python_folder, "rez")):
+    os.makedirs(os.path.join(embedded_python_folder, "rez"))
 rez_config_filename = os.path.join(embedded_python_folder, "rez", "rezconfig.py")
 os.environ["REZ_CONFIG_FILE"] = rez_config_filename
 run(r'setx.exe REZ_CONFIG_FILE  ' + rez_config_filename)
 rez_config_file = open(rez_config_filename, "w+")
-rez_config_file.write(f"""#REZ_LOCAL_PACKAGES_PATH\n# The path that Rez will locally install packages to when rez-build is used\nlocal_packages_path = "{os.path.join(embedded_python_folder,"rez","packages")}""""")
+#rez_config_file.write(f"""#REZ_LOCAL_PACKAGES_PATH\n# The path that Rez will locally install packages to when rez-build is used\nlocal_packages_path = "{os.path.join(embedded_python_folder,"rez","packages")}\n""")
+rez_config_file.write(f"#REZ_LOCAL_PACKAGES_PATH\n# The path that Rez will locally install packages to when rez-build is used\nlocal_packages_path = \"{os.path.join(embedded_python_folder,'rez','packages')}\"\n")
 remote_packages_folder = input("Release rez packages folder: ")
-release_packages_path = {os.path.join(remote_packages_folder, "rez", "packages")}
-rez_config_file.write(f"""#REZ_RELEASE_PACKAGES_PATH\n# The path that Rez will deploy packages to when rez-release is used. For\n# production use, you will probably want to change this to a site-wide location.\nrelease_packages_path = "{release_packages_path}""""")
+release_packages_path = os.path.join(remote_packages_folder, "rez", "packages")
+rez_config_file.write(f"#REZ_RELEASE_PACKAGES_PATH\n# The path that Rez will deploy packages to when rez-release is used. For\n# production use, you will probably want to change this to a site-wide location.\nrelease_packages_path = \"{release_packages_path}\"")
 
 call(os.path.join(embedded_python_folder, "Scripts", "rez-bind --quickstart"))
