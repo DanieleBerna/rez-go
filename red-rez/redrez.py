@@ -126,6 +126,6 @@ if not os.path.exists(release_packages_path):
     os.makedirs(release_packages_path)
 # call(os.path.join(embedded_python_folder, "Scripts", "rez-bind --quickstart"))
 #call(os.path.join(embedded_python_folder, "Scripts", "rez-config packages_path"))
-env_variables = dict(os.environ)
+env_variables = os.environ.copy()
 print(env_variables)
 Popen([os.path.join(embedded_python_folder, "Scripts", "rez-config"), "packages_path"], shell=True, env=env_variables).wait()
