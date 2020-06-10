@@ -1,6 +1,7 @@
 from urllib import request
 from shutil import copyfile
-from subprocess import call, run
+from subprocess import call, run, Popen
+from pathlib import Path
 import os
 import re
 import zipfile
@@ -91,23 +92,40 @@ call(os.path.join(embedded_python_folder, "Scripts", "pip") + " install bleeding
 
 if not os.path.exists(os.path.join(embedded_python_folder, "rez")):
     os.makedirs(os.path.join(embedded_python_folder, "rez"))
-# rez_config_filename = os.path.join(embedded_python_folder, "rez", "rezconfig.py")
-rez_config_filename = os.path.join(embedded_python_folder, "rez")
-os.environ["REZ_CONFIG_FILE"] = rez_config_filename
-run(r'setx.exe REZ_CONFIG_FILE  ' + rez_config_filename + "/m")
-print(f"\nREZ_CONFIG_FILE set to: {os.environ.get('REZ_CONFIG_FILE')}\n")
-rez_config_file = open(os.path.join(rez_config_filename, "rezconfig.py"), "w+")
 
-#rez_config_file.write(f"""#REZ_LOCAL_PACKAGES_PATH\n# The path that Rez will locally install packages to when rez-build is used\nlocal_packages_path = "{os.path.join(embedded_python_folder,"rez","packages")}\n""")
-local_packages_folder = os.path.join(embedded_python_folder,'rez','packages')
-if not os.path.exists(local_packages_folder):
-    os.makedirs(local_packages_folder)
-rez_config_file.write(f"#REZ_LOCAL_PACKAGES_PATH\n# The path that Rez will locally install packages to when rez-build is used\nlocal_packages_path = \"{local_packages_folder}\"\n")
+include_file = True
+
+if include_file:
+    rez_config_filename = os.path.join(embedded_python_folder, "rez", "rezconfig.py")
+else:
+    rez_config_filename = os.path.join(embedded_python_folder, "rez")
+
+os.environ["REZ_CONFIG_FILE"] = rez_config_filename
+run(["setx.exe", "REZ_CONFIG_FILE", rez_config_filename])
+#run(["set.exe", "REZ_CONFIG_FILE=", rez_config_filename],shell=True)
+print(f"\nREZ_CONFIG_FILE set to: {os.environ.get('REZ_CONFIG_FILE')}\n")
+
+local_packages_folder = os.path.join(embedded_python_folder,'rez','packages').replace('\\','/')
 remote_packages_folder = input("Release rez packages folder: ")
-release_packages_path = os.path.join(remote_packages_folder, "rez", "packages")
-if not os.path.exists(release_packages_path):
-    os.makedirs(release_packages_path)
+release_packages_path = os.path.join(remote_packages_folder, "rez", "packages").replace('\\','/')
+
+if include_file:
+    rez_config_file = open(os.path.join(rez_config_filename), "w+")
+else:
+    rez_config_file = open(os.path.join(rez_config_filename, "rezconfig.py"), "w+")
+
+print(f"LOCAL PACKAGE FOLDER: {local_packages_folder}")
+print(f"RELEASE PACKAGE FOLDER: {release_packages_path}")
+rez_config_file.write(f"# The package search path. Rez uses this to find packages. A package with the\n# same name and version in an earlier path takes precedence.\npackages_path = [\"{local_packages_folder}\",\"{release_packages_path}\"]\n")
+rez_config_file.write(f"#REZ_LOCAL_PACKAGES_PATH\n# The path that Rez will locally install packages to when rez-build is used\nlocal_packages_path = \"{local_packages_folder}\"\n")
 rez_config_file.write(f"#REZ_RELEASE_PACKAGES_PATH\n# The path that Rez will deploy packages to when rez-release is used. For\n# production use, you will probably want to change this to a site-wide location.\nrelease_packages_path = \"{release_packages_path}\"")
 
+if not os.path.exists(local_packages_folder):
+    os.makedirs(local_packages_folder)
+if not os.path.exists(release_packages_path):
+    os.makedirs(release_packages_path)
 # call(os.path.join(embedded_python_folder, "Scripts", "rez-bind --quickstart"))
-call(os.path.join(embedded_python_folder, "Scripts", "rez-config"))
+#call(os.path.join(embedded_python_folder, "Scripts", "rez-config packages_path"))
+env_variables = dict(os.environ)
+print(env_variables)
+Popen([os.path.join(embedded_python_folder, "Scripts", "rez-config"), "packages_path"], shell=True, env=env_variables).wait()
