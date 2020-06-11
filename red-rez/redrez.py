@@ -32,7 +32,7 @@ else:
 """ The pipeline requires all tools to be installed in a local folder that is then remapped to a previously agreed unit.
 Script defaults to user's home directory if nothing is provided."""
 
-install_folder = input("Install folder (User Home)): ") or "D:\\Works\\test"  # str(Path.home())
+install_folder = input("Install folder (User Home)): ") or "D:\\Works\\pipe"  # str(Path.home())
 
 remap_to = input("Remap folder to a new unit (no)? ") or False
 
@@ -106,7 +106,7 @@ run(["setx.exe", "REZ_CONFIG_FILE", rez_config_filename])
 print(f"\nREZ_CONFIG_FILE set to: {os.environ.get('REZ_CONFIG_FILE')}\n")
 
 local_packages_folder = os.path.join(embedded_python_folder,'rez','packages').replace('\\','/')
-remote_packages_folder = input("Release rez packages folder: ") or "D:\\Works\\test\\server"
+remote_packages_folder = input("Release rez packages folder: ") or "D:\\Works\\pipe\\server"
 release_packages_path = os.path.join(remote_packages_folder, "rez", "packages").replace('\\','/')
 
 if include_file:
@@ -116,6 +116,8 @@ else:
 
 print(f"LOCAL PACKAGE FOLDER: {local_packages_folder}")
 print(f"RELEASE PACKAGE FOLDER: {release_packages_path}")
+os.environ["REZ_LOCAL_PACKAGES_PATH"] = local_packages_folder
+os.environ["REZ_RELEASE_PACKAGES_PATH"] = release_packages_path
 rez_config_file.write(f"all_parent_variables = True\n")
 rez_config_file.write(f"# The package search path. Rez uses this to find packages. A package with the\n# same name and version in an earlier path takes precedence.\npackages_path = [\"{local_packages_folder}\",\"{release_packages_path}\"]\n")
 rez_config_file.write(f"#REZ_LOCAL_PACKAGES_PATH\n# The path that Rez will locally install packages to when rez-build is used\nlocal_packages_path = \"{local_packages_folder}\"\n")
@@ -133,7 +135,9 @@ run(["echo", "%REZ_CONFIG_FILE%"], shell=True, env=env_variables)
 run([os.path.join(embedded_python_folder, "Scripts", "rez-config"), "--source-list"], shell=True, env=env_variables)
 print("\nVar with ECHO after --source-list")
 run(["echo", "%REZ_CONFIG_FILE%"], shell=True, env=env_variables)
-run([os.path.join(embedded_python_folder, "Scripts", "rez-config"), "packages_path"], shell=True, env=env_variables)
+run([os.path.join(embedded_python_folder, "Scripts", "rez-config"), "packages_path"], shell=True, env=dict(env_variables, REZ_LOCAL_PACKAGES_PATH=local_packages_folder, REZ_RELEASE_PACKAGES_PATH=release_packages_path))
 print("\nVar with ECHO after packages_path")
 run(["echo", "%REZ_CONFIG_FILE%"], shell=True, env=env_variables)
+
+run([os.path.join(embedded_python_folder, "Scripts", "rez-config"), "packages_path"], shell=True, env=dict(env_variables, REZ_LOCAL_PACKAGES_PATH=local_packages_folder, REZ_RELEASE_PACKAGES_PATH=release_packages_path))
 # Popen([os.path.join(embedded_python_folder, "Scripts", "rez-config"), "packages_path"], shell=True, env=env_variables).wait()
