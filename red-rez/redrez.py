@@ -1,29 +1,43 @@
 from urllib import request
 from shutil import copyfile
-from subprocess import call, run, Popen
-from pathlib import Path
+from subprocess import call, run
 import os
 import re
 import zipfile
 import fileinput
 
-
-def hack_rezconfig_file(filepath, local_packages_folder, server_packages_folder, restore=False):
-    if not restore:
-        for line in fileinput.input(filepath, inplace=1):
-            print(line.replace("~/packages", local_packages_folder).rstrip())
-
-        for line in fileinput.input(filepath, inplace=1):
-            print(line.replace("~/.rez/packages", server_packages_folder).rstrip())
-    else:
-        for line in fileinput.input(filepath, inplace=1):
-            print(line.replace(local_packages_folder, "~/packages").rstrip())
-
-        for line in fileinput.input(filepath, inplace=1):
-            print(line.replace(server_packages_folder, "~/.rez/packages").rstrip())
-
-
 EMBEDDABLE_PYTHON_URL = "https://www.python.org/ftp/python/"  # URL for python releases download
+
+
+def hack_rezconfig_file(filepath, local_packages_folder, release_packages_folder, restore=False):
+    """
+    A function used to replace rez packages paths with custom ones and restore original settings.
+    This is just a temporary hack since for some reason bleeding-rez seems to ignore rezconfig.py override at first
+    run.
+    :param filepath: complete path and filename of the default and primary rezconfig.py file
+    :param local_packages_folder: destination folder of local packages
+    :param release_packages_folder: destination folder for released packages
+    :param restore: boolean flag for resetting paths to default ~/packages folder
+    :return:
+    """
+    try:
+        if not restore:
+            for line in fileinput.input(filepath, inplace=1):
+                print(line.replace("~/packages", local_packages_folder).rstrip())
+
+            for line in fileinput.input(filepath, inplace=1):
+                print(line.replace("~/.rez/packages", release_packages_folder).rstrip())
+        else:
+            for line in fileinput.input(filepath, inplace=1):
+                print(line.replace(local_packages_folder, "~/packages").rstrip())
+
+            for line in fileinput.input(filepath, inplace=1):
+                print(line.replace(release_packages_folder, "~/.rez/packages").rstrip())
+    except IOError as e:
+        print(e)
+        return False
+    return True
+
 
 print(f"Red Rez - Redistributable rez installer\n")
 
@@ -31,12 +45,12 @@ print(f"Red Rez - Redistributable rez installer\n")
 A valid Python version is here required.
 Script defaults to 3.7.4 64bit version if nothing is provided."""
 
-python_version = input("Python version (3.7.4): ") or "3.7.4"
+python_version = input("Python version (3.7.4): ") or "3.7.4"  # prompt for python version
 if re.match("3.[0-9].[0-9]", python_version) is None:
     print(f"{python_version} is not a valid Python version")
     exit()
 
-system = input("OS architecture (64bit): ") or "64"
+system = input("OS architecture (64bit): ") or "64"  # prompt for OS architecture
 if system == "32":
     system = "win32"
 elif system == "64":
@@ -49,9 +63,7 @@ else:
 Script defaults to user's home directory if nothing is provided."""
 
 install_folder = input("Install folder (User Home)): ") or r"D:/Works/pipe"
-
 remap_to = input("Remap folder to a new unit (no)? ") or False
-
 if remap_to:
     try:
         remap_to = remap_to.upper()
@@ -62,26 +74,28 @@ if remap_to:
         print(f"An error has occurred while remapping {install_folder} to {remap_to} unit")
         exit()
 
-zip_filename = f"python-{python_version}-embed-{system}.zip"
-if not os.path.exists(zip_filename):  # Download required embeddable python if not present in script folder
-    download_url = f"{EMBEDDABLE_PYTHON_URL}{python_version}/{zip_filename}"
+"""Embeddable Python download and unpacking."""
+python_zip_filename = f"python-{python_version}-embed-{system}.zip"
+if not os.path.exists(python_zip_filename):  # Download required embeddable python if not present in script folder
+    download_url = f"{EMBEDDABLE_PYTHON_URL}{python_version}/{python_zip_filename}"
     print(f"Downloading embeddable Python from: {download_url}")
     try:
-        with request.urlopen(download_url) as response, open(zip_filename, 'wb') as out_file:
+        with request.urlopen(download_url) as response, open(python_zip_filename, 'wb') as out_file:
             data = response.read()
             out_file.write(data)
     except:
-        print(f"An error has occurred while downloading {zip_filename}")
+        print(f"An error has occurred while downloading {python_zip_filename}")
         exit()
-
-with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
-    zip_ref.extractall(os.path.join((install_folder), "core", "python"))
-
+embedded_python_folder = os.path.join(install_folder, "core", "python")
+with zipfile.ZipFile(python_zip_filename, 'r') as zip_ref:
+    zip_ref.extractall(embedded_python_folder)
+    zip_ref.close()
 
 """ python37._pth needs to be edited uncommenting the import site line"""
 for line in fileinput.input(os.path.join(install_folder, "core", "python", "python37._pth"), inplace=1):
     print(line.replace("#import site", "import site").rstrip())
 
+""" Pip needs to be added to the interpreter """
 getpip_filename = os.path.join(install_folder, "core", "python", "get-pip.py")
 if not os.path.exists("get-pip.py"):  # Download get-pip.py if not present in script folder
     download_url = "https://bootstrap.pypa.io/get-pip.py"
@@ -91,26 +105,23 @@ if not os.path.exists("get-pip.py"):  # Download get-pip.py if not present in sc
             data = response.read()
             out_file.write(data)
     except:
-        print(f"An error has occurred while downloading {zip_filename}")
+        print(f"An error has occurred while downloading get-pip.py")
         exit()
 try:
     copyfile("get-pip.py", getpip_filename)
 except IOError as e:
-    print(f"An error has occurred while copying {zip_filename}")
+    print(f"An error has occurred while copying get-pip.py")
     print(e)
     exit()
-
-embedded_python_folder = os.path.join(install_folder, "core", "python")
-
 call(os.path.join(embedded_python_folder, "python.exe") + " " + os.path.join(embedded_python_folder, "get-pip.py --no-warn-script-location"))
 
+"""Download and install of bleeding-rex using pip"""
 call(os.path.join(embedded_python_folder, "Scripts", "pip") + " install bleeding-rez --no-warn-script-location")
 
 if not os.path.exists(os.path.join(embedded_python_folder, "rez")):
     os.makedirs(os.path.join(embedded_python_folder, "rez"))
 
 include_file = True
-
 if include_file:
     rez_config_filename = os.path.join(embedded_python_folder, "rez", "rezconfig.py")
 else:
@@ -140,7 +151,7 @@ rez_config_file.write(f"#REZ_RELEASE_PACKAGES_PATH\n# The path that Rez will dep
 
 
 """ HACK: direct edit of Lib/site-packages/rez/rezconfig.py file """
-hack_rezconfig_file(os.path.join(install_folder, "core", "python", "Lib", "site-packages", "rez", "rezconfig.py"), local_packages_folder, release_packages_path)
+#hack_rezconfig_file(os.path.join(install_folder, "core", "python", "Lib", "site-packages", "rez", "rezconfig.py"), local_packages_folder, release_packages_path)
 
 
 """if not os.path.exists(local_packages_folder):
@@ -151,13 +162,13 @@ if not os.path.exists(release_packages_path):
 env_variables = os.environ.copy()
 
 # run(os.path.join(embedded_python_folder, "Scripts", "rez-bind --quickstart"), shell=True, env=env_variables)
-run(os.path.join(embedded_python_folder, "Scripts", "rez-bind platform"), shell=True, env=env_variables)
-run(os.path.join(embedded_python_folder, "Scripts", "rez-bind arch"), shell=True, env=env_variables)
-run(os.path.join(embedded_python_folder, "Scripts", "rez-bind os"), shell=True, env=env_variables)
-run(os.path.join(embedded_python_folder, "Scripts", "rez-bind rez"), shell=True, env=env_variables)
-run(os.path.join(embedded_python_folder, "Scripts", "rez-bind rezgui"), shell=True, env=env_variables)
-run(os.path.join(embedded_python_folder, "Scripts", "rez-bind setuptools"), shell=True, env=env_variables)
-run(os.path.join(embedded_python_folder, "Scripts", "rez-bind pip"), shell=True, env=env_variables)
+run([os.path.join(embedded_python_folder, "Scripts", "rez-bind"), "-i", local_packages_folder, "platform"], shell=True, env=env_variables)
+run([os.path.join(embedded_python_folder, "Scripts", "rez-bind"), "-i", local_packages_folder, "arch"], shell=True, env=env_variables)
+run([os.path.join(embedded_python_folder, "Scripts", "rez-bind"), "-i", local_packages_folder, "os"], shell=True, env=env_variables)
+run([os.path.join(embedded_python_folder, "Scripts", "rez-bind"), "-i", local_packages_folder, "rez"], shell=True, env=env_variables)
+run([os.path.join(embedded_python_folder, "Scripts", "rez-bind"), "-i", local_packages_folder, "rezgui"], shell=True, env=env_variables)
+run([os.path.join(embedded_python_folder, "Scripts", "rez-bind"), "-i", local_packages_folder, "setuptools"], shell=True, env=env_variables)
+run([os.path.join(embedded_python_folder, "Scripts", "rez-bind"), "-i", local_packages_folder, "pip"], shell=True, env=env_variables)
 
 #call(os.path.join(embedded_python_folder, "Scripts", "rez-config packages_path"))
 
@@ -173,4 +184,4 @@ run(["echo", "%REZ_CONFIG_FILE%"], shell=True, env=env_variables)
 run([os.path.join(embedded_python_folder, "Scripts", "rez-config"), "packages_path"], shell=True, env=env_variables)"""
 
 """ HACK: direct edit of Lib/site-packages/rez/rezconfig.py file: restore original file"""
-hack_rezconfig_file(os.path.join(install_folder, "core", "python", "Lib", "site-packages", "rez", "rezconfig.py"), local_packages_folder, release_packages_path, restore=True)
+#hack_rezconfig_file(os.path.join(install_folder, "core", "python", "Lib", "site-packages", "rez", "rezconfig.py"), local_packages_folder, release_packages_path, restore=True)

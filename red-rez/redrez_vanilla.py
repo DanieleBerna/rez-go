@@ -67,6 +67,13 @@ with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
 for line in fileinput.input(os.path.join(install_folder, "core", "python", "python37._pth"), inplace=1):
     print(line.replace("#import site", "import site").rstrip())
 
+with zipfile.ZipFile(os.path.join(install_folder, "core", "python", "python37.zip"), 'r') as zip_ref:
+    pyzip_folder = os.path.join(install_folder, "core", "python", "python37zip")
+    zip_ref.extractall(pyzip_folder)
+    zip_ref.close()
+    os.remove(os.path.join(install_folder, "core", "python", "python37.zip"))
+    os.rename(pyzip_folder, os.path.join(install_folder, "core", "python", "python37.zip"))
+
 getpip_filename = os.path.join(install_folder, "core", "python", "get-pip.py")
 if not os.path.exists("get-pip.py"):  # Download get-pip.py if not present in script folder
     download_url = "https://bootstrap.pypa.io/get-pip.py"
@@ -94,5 +101,5 @@ call(os.path.join(embedded_python_folder, "python.exe") + " " + os.path.join(emb
 """ TRY WITH VANILLA REZ """
 with zipfile.ZipFile(os.path.join(os.path.dirname(sys.argv[0]), "rez.zip"), 'r') as zip_ref:
     zip_ref.extractall(os.path.join(install_folder, "core", "rez-install"))
-call(os.path.join(embedded_python_folder, "python.exe") + " " + os.path.join(install_folder, "core", "rez-install", "rez", "install.py "+os.path.join(install_folder, "core", "rez")))
+run([os.path.join(embedded_python_folder, "python.exe"), os.path.join(install_folder, "core", "rez-install", "rez", "install.py"), "-v", os.path.join(install_folder, "core", "rez")])
 
