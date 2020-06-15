@@ -1,5 +1,8 @@
+import fileinput
 import os
-import subprocess
-os.environ["TEST_KEY"] = "my test key"
-env = os.environ.copy()
-subprocess.Popen(["echo", "%TEST_KEY%"], shell=True, env=env).wait()
+
+for line in fileinput.input("rezconfig.py", inplace=1):
+    print(line.replace("~/packages", "D:\Path\Locale").rstrip())
+
+for line in fileinput.input("rezconfig.py", inplace=1):
+    print(line.replace("~/.rez/packages", "D:\Path\Server").rstrip())

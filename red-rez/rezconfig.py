@@ -97,7 +97,7 @@ that setting:
 
 Here is an example showing how to override settings using your own configuration file:
 
-    ]$ echo 'packages_path = ["~/packages", "/packages"]' > myrezconfig.py
+    ]$ echo 'packages_path = ["D:\Path\Locale", "/packages"]' > myrezconfig.py
     ]$ export REZ_CONFIG_FILE=${PWD}/myrezconfig.py
     ]$ rez-config packages_path
     - /home/sclaus/packages
@@ -151,17 +151,17 @@ import os
 # The package search path. Rez uses this to find packages. A package with the
 # same name and version in an earlier path takes precedence.
 packages_path = [
-    "~/packages",           # locally installed pkgs, not yet deployed
-    "~/.rez/packages/int",  # internally developed pkgs, deployed
-    "~/.rez/packages/ext",  # external (3rd party) pkgs, such as houdini, boost
+    "D:\Path\Locale",           # locally installed pkgs, not yet deployed
+    "D:\Path\Server/int",  # internally developed pkgs, deployed
+    "D:\Path\Server/ext",  # external (3rd party) pkgs, such as houdini, boost
 ]
 
 # The path that Rez will locally install packages to when rez-build is used
-local_packages_path = "~/packages"
+local_packages_path = "D:\Path\Locale"
 
 # The path that Rez will deploy packages to when rez-release is used. For
 # production use, you will probably want to change this to a site-wide location.
-release_packages_path = "~/.rez/packages/int"
+release_packages_path = "D:\Path\Server/int"
 
 # Where temporary files go. Defaults to appropriate path depending on your
 # system - for example, *nix distributions will probably set this to "/tmp". It
