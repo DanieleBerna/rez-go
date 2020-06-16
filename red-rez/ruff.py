@@ -1,8 +1,11 @@
-import fileinput
+from urllib import request
+from shutil import copyfile
+from subprocess import call, run
 import os
+import re
+import zipfile
 
-for line in fileinput.input("rezconfig.py", inplace=1):
-    print(line.replace("~/packages", "D:\Path\Locale").rstrip())
+blender_zip_path = r"T:\blender\windows64\payload\blender.zip"
+archive = zipfile.ZipFile(blender_zip_path)
+print(archive.namelist()[0].split("-")[1])
 
-for line in fileinput.input("rezconfig.py", inplace=1):
-    print(line.replace("~/.rez/packages", "D:\Path\Server").rstrip())
