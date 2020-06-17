@@ -6,13 +6,15 @@ import re
 import zipfile
 import fileinput
 
-EMBEDDABLE_PYTHON_URL = "https://www.python.org/ftp/python/"  # URL for python releases download
+_EMBEDDABLE_PYTHON_URL = "https://www.python.org/ftp/python/"  # URL for python releases download
+_DEFAULT_PYTHON_VERSION = "3.7.4"
+_DEFAULT_INSTALL_FOLDER = r"T:/"
 _UGCORE_DIR = "ugcore"
 
 
 def hack_rezconfig_file(filepath, local_packages_folder, release_packages_folder, restore=False):
     """
-    A function used to replace rez packages paths with custom ones and restore original settings.
+    Replace rez packages paths inside base rezconfig.py file with custom ones and restore original settings.
     This is just a temporary hack since for some reason bleeding-rez seems to ignore rezconfig.py override at first
     run.
     :param filepath: complete path and filename of the default and primary rezconfig.py file
@@ -35,23 +37,41 @@ def hack_rezconfig_file(filepath, local_packages_folder, release_packages_folder
             for line in fileinput.input(filepath, inplace=1):
                 print(line.replace(release_packages_folder, "~/.rez/packages").rstrip())
     except IOError as e:
-        print(e)
+        print(f"Error while hacking rezconfig.py file\n{e}")
         return False
     return True
 
 
-print(f"Red Rez - Redistributable rez installer\n")
+def create_python_pakage_file(interpreter_folder, version):
+    """
+    Create a package.py file used to re-bind an embedded interpreter
+    :param interpreter_folder: folder of the python.exe file
+    :param version: Python (and package) version
+    """
+    try:
+        package_build_file = open(os.path.join(interpreter_folder, "package.py"), "w+")
+        package_build_file.write(f"import os\n\nname = 'python'\nversion = '{version}'\nbuild_command = False\n\n@early()\n"
+                                 f"def _bin_path():\n\treturn os.getcwd()\n\ndef commands():\n\tglobal env\n\t"
+                                 f"env['PATH'].prepend('{{this._bin_path}}')")
+        package_build_file.close()
+    except IOError as e:
+        print(f"Error while writing package.py file for Python interpreter\n{e}")
+        return False
+    return True
+
+
+print(f"RED REZ - Redistributable rez installer\n")
 
 """ The pipeline uses an embedded light Python3 version to install and then run rez.
 A valid Python version is here required.
 Script defaults to 3.7.4 64bit version if nothing is provided."""
 
-python_version = input("Python version (3.7.4): ") or "3.7.4"  # prompt for python version
+python_version = input(f"Python version ({_DEFAULT_PYTHON_VERSION}): ") or _DEFAULT_PYTHON_VERSION
 if re.match("3.[0-9].[0-9]", python_version) is None:
     print(f"{python_version} is not a valid Python version")
     exit()
 
-system = input("OS architecture (64bit): ") or "64"  # prompt for OS architecture
+system = input("OS architecture (64bit): ") or "64"
 if system == "32":
     system = "win32"
 elif system == "64":
@@ -63,7 +83,7 @@ else:
 """ The pipeline requires all tools to be installed in a local folder that is then remapped to a previously agreed unit.
 Script defaults to user's home directory if nothing is provided."""
 
-install_folder = input("Install folder (T:/UntoldPipeline)): ") or r"T:/"  # if not provided it assumes that mapped drive T: already exists
+install_folder = input("Install folder (T:/): ") or r"T:/"
 if not os.path.exists(install_folder):
     print(f"Install folder {install_folder} doesn't exists")
     exit()
@@ -82,7 +102,7 @@ if remap_to:
 """Embeddable Python download and unpacking."""
 python_zip_filename = f"python-{python_version}-embed-{system}.zip"
 if not os.path.exists(python_zip_filename):  # Download required embeddable python if not present in script folder
-    download_url = f"{EMBEDDABLE_PYTHON_URL}{python_version}/{python_zip_filename}"
+    download_url = f"{_EMBEDDABLE_PYTHON_URL}{python_version}/{python_zip_filename}"
     print(f"Downloading embeddable Python from: {download_url}")
     try:
         with request.urlopen(download_url) as response, open(python_zip_filename, 'wb') as out_file:
@@ -96,8 +116,9 @@ with zipfile.ZipFile(python_zip_filename, 'r') as zip_ref:
     zip_ref.extractall(embedded_python_folder)
     zip_ref.close()
 
-""" python37._pth needs to be edited uncommenting the import site line"""
-for line in fileinput.input(os.path.join(embedded_python_folder, "python37._pth"), inplace=1):
+""" pythonXX._pth needs to be edited uncommenting the import site line"""
+pythonXX = "python"+python_version.split(".")[0]+python_version.split(".")[1]
+for line in fileinput.input(os.path.join(embedded_python_folder, pythonXX+"._pth"), inplace=1):
     print(line.replace("#import site", "import site").rstrip())
 
 """ Pip needs to be added to the interpreter """
@@ -155,6 +176,8 @@ rez_config_file.write(f"# The package search path. Rez uses this to find package
 rez_config_file.write(f"#REZ_LOCAL_PACKAGES_PATH\n# The path that Rez will locally install packages to when rez-build is used\nlocal_packages_path = \"{local_packages_folder}\"\n")
 rez_config_file.write(f"#REZ_RELEASE_PACKAGES_PATH\n# The path that Rez will deploy packages to when rez-release is used. For\n# production use, you will probably want to change this to a site-wide location.\nrelease_packages_path = \"{release_packages_path}\"")
 
+""" Now a package must be setup for the downloaded python interpreter: a package.py is created for a rez-build """
+create_python_pakage_file(embedded_python_folder, python_version)
 
 """ HACK: direct edit of Lib/site-packages/rez/rezconfig.py file """
 #hack_rezconfig_file(os.path.join(install_folder, "core", "python", "Lib", "site-packages", "rez", "rezconfig.py"), local_packages_folder, release_packages_path)
