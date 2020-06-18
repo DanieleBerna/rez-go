@@ -148,7 +148,7 @@ rez_folder = os.path.join(install_folder, _UGCORE_DIR, "rez")
 if not os.path.exists(rez_folder):
     os.makedirs(rez_folder)
 
-include_file = True
+include_file = False
 if include_file:
     rez_config_filename = os.path.join(rez_folder, "rezconfig.py")
 else:
@@ -159,8 +159,8 @@ run(["setx.exe", "REZ_CONFIG_FILE", rez_config_filename])
 print(f"\nREZ_CONFIG_FILE set to: {os.environ.get('REZ_CONFIG_FILE')}\n")
 
 local_packages_folder = os.path.join(rez_folder,'packages').replace('\\','/')
-release_packages_path = input("Release rez packages folder: ") or r"\\ASH|Storage\.rez\packages"
-release_packages_path = os.path.join(release_packages_path, "rez", "packages").replace('\\','/')
+release_packages_path = input("Release rez packages folder (\\\\ASH\Storage\.rez\packages): ") or r"\\ASH\Storage\.rez\packages"
+release_packages_path = os.path.join(release_packages_path, "rez", "packages").replace('\\', '/')
 
 if include_file:
     rez_config_file = open(os.path.join(rez_config_filename), "w+")
@@ -180,7 +180,7 @@ rez_config_file.write(f"#REZ_RELEASE_PACKAGES_PATH\n# The path that Rez will dep
 create_python_pakage_file(embedded_python_folder, python_version)
 
 """ HACK: direct edit of Lib/site-packages/rez/rezconfig.py file """
-#hack_rezconfig_file(os.path.join(install_folder, "core", "python", "Lib", "site-packages", "rez", "rezconfig.py"), local_packages_folder, release_packages_path)
+hack_rezconfig_file(os.path.join(embedded_python_folder, "Lib", "site-packages", "rez", "rezconfig.py"), local_packages_folder, release_packages_path)
 
 
 """if not os.path.exists(local_packages_folder):
@@ -189,15 +189,17 @@ if not os.path.exists(release_packages_path):
     os.makedirs(release_packages_path)"""
 
 env_variables = os.environ.copy()
-
+os.chdir(embedded_python_folder)
 # run(os.path.join(embedded_python_folder, "Scripts", "rez-bind --quickstart"), shell=True, env=env_variables)
-run([os.path.join(embedded_python_folder, "Scripts", "rez-bind"), "-i", local_packages_folder, "platform"], shell=True, env=env_variables)
-run([os.path.join(embedded_python_folder, "Scripts", "rez-bind"), "-i", local_packages_folder, "arch"], shell=True, env=env_variables)
-run([os.path.join(embedded_python_folder, "Scripts", "rez-bind"), "-i", local_packages_folder, "os"], shell=True, env=env_variables)
-# run([os.path.join(embedded_python_folder, "Scripts", "rez-bind"), "-i", local_packages_folder, "rez"], shell=True, env=env_variables)
-# run([os.path.join(embedded_python_folder, "Scripts", "rez-bind"), "-i", local_packages_folder, "rezgui"], shell=True, env=env_variables)
-# run([os.path.join(embedded_python_folder, "Scripts", "rez-bind"), "-i", local_packages_folder, "setuptools"], shell=True, env=env_variables)
-# run([os.path.join(embedded_python_folder, "Scripts", "rez-bind"), "-i", local_packages_folder, "pip"], shell=True, env=env_variables)
+
+run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "platform"], shell=True, env=env_variables)
+run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "arch"], shell=True, env=env_variables)
+run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "os"], shell=True, env=env_variables)
+run([os.path.join("Scripts", "rez-build"), "--install"])
+run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "rez"], shell=True, env=env_variables)
+run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "rezgui"], shell=True, env=env_variables)
+run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "setuptools"], shell=True, env=env_variables)
+run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "pip"], shell=True, env=env_variables)
 
 #call(os.path.join(embedded_python_folder, "Scripts", "rez-config packages_path"))
 
@@ -213,4 +215,4 @@ run(["echo", "%REZ_CONFIG_FILE%"], shell=True, env=env_variables)
 run([os.path.join(embedded_python_folder, "Scripts", "rez-config"), "packages_path"], shell=True, env=env_variables)"""
 
 """ HACK: direct edit of Lib/site-packages/rez/rezconfig.py file: restore original file"""
-#hack_rezconfig_file(os.path.join(install_folder, "core", "python", "Lib", "site-packages", "rez", "rezconfig.py"), local_packages_folder, release_packages_path, restore=True)
+hack_rezconfig_file(os.path.join(embedded_python_folder, "Lib", "site-packages", "rez", "rezconfig.py"), local_packages_folder, release_packages_path, restore=True)
