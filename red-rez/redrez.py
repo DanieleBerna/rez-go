@@ -148,7 +148,7 @@ rez_folder = os.path.join(install_folder, _UGCORE_DIR, "rez")
 if not os.path.exists(rez_folder):
     os.makedirs(rez_folder)
 
-include_file = False
+include_file = True
 if include_file:
     rez_config_filename = os.path.join(rez_folder, "rezconfig.py")
 else:
