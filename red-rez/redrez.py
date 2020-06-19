@@ -117,9 +117,16 @@ with zipfile.ZipFile(python_zip_filename, 'r') as zip_ref:
     zip_ref.close()
 
 """ pythonXX._pth needs to be edited uncommenting the import site line"""
-pythonXX = "python"+python_version.split(".")[0]+python_version.split(".")[1]
+"""pythonXX = "python"+python_version.split(".")[0]+python_version.split(".")[1]
 for line in fileinput.input(os.path.join(embedded_python_folder, pythonXX+"._pth"), inplace=1):
-    print(line.replace("#import site", "import site").rstrip())
+    print(line.replace("#import site", "import site").rstrip())"""
+
+"""pythonXX = "python"+python_version.split(".")[0]+python_version.split(".")[1]
+pf = open(os.path.join(embedded_python_folder, pythonXX+"._pth"),'a')
+pf.write("./Lib/site-packages/")
+pf.close()"""
+
+os.rename(os.path.join(embedded_python_folder, "python"+python_version.split(".")[0]+python_version.split(".")[1] +"._pth") ,os.path.join(embedded_python_folder, "__python"+python_version.split(".")[0]+python_version.split(".")[1] +"._pth") )
 
 """ Pip needs to be added to the interpreter """
 getpip_filename = os.path.join(embedded_python_folder, "get-pip.py")
@@ -190,16 +197,17 @@ if not os.path.exists(release_packages_path):
 
 env_variables = os.environ.copy()
 os.chdir(embedded_python_folder)
-# run(os.path.join(embedded_python_folder, "Scripts", "rez-bind --quickstart"), shell=True, env=env_variables)
+
+# run([os.path.join("Scripts", "rez-bind"), "--quickstart"], shell=True, env=env_variables)
 
 run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "platform"], shell=True, env=env_variables)
 run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "arch"], shell=True, env=env_variables)
 run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "os"], shell=True, env=env_variables)
 run([os.path.join("Scripts", "rez-build"), "--install"])
 run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "rez"], shell=True, env=env_variables)
-run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "rezgui"], shell=True, env=env_variables)
-run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "setuptools"], shell=True, env=env_variables)
-run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "pip"], shell=True, env=env_variables)
+# run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "rezgui"], shell=True, env=env_variables)
+# run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "setuptools"], shell=True, env=env_variables)
+# run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "pip"], shell=True, env=env_variables)
 
 #call(os.path.join(embedded_python_folder, "Scripts", "rez-config packages_path"))
 
