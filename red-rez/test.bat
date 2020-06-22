@@ -1,0 +1,1 @@
+T:\ugcore\rez\Scripts\rez\rez-env python -- python

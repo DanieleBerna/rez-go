@@ -50,8 +50,9 @@ def create_python_pakage_file(interpreter_folder, version):
     """
     try:
         package_build_file = open(os.path.join(interpreter_folder, "package.py"), "w+")
-        package_build_file.write(f"import os\n\nname = 'python'\nversion = '{version}'\nbuild_command = False\n\n@early()\n"
-                                 f"def _bin_path():\n\treturn os.getcwd()\n\ndef commands():\n\tglobal env\n\t"
+        package_build_file.write(f"import os\n\nname = 'python'\nversion = '{version}'\nbuild_command = False\n\n"
+                                 f"@early()\ndef _bin_path():\n\treturn os.getcwd()\n\n"
+                                 f"def commands():\n\tglobal env\n\t"
                                  f"env['PATH'].prepend('{{this._bin_path}}')")
         package_build_file.close()
     except IOError as e:
@@ -117,16 +118,16 @@ with zipfile.ZipFile(python_zip_filename, 'r') as zip_ref:
     zip_ref.close()
 
 """ pythonXX._pth needs to be edited uncommenting the import site line"""
-"""pythonXX = "python"+python_version.split(".")[0]+python_version.split(".")[1]
+pythonXX = "python"+python_version.split(".")[0]+python_version.split(".")[1]
 for line in fileinput.input(os.path.join(embedded_python_folder, pythonXX+"._pth"), inplace=1):
-    print(line.replace("#import site", "import site").rstrip())"""
+    print(line.replace("#import site", "import site").rstrip())
 
 """pythonXX = "python"+python_version.split(".")[0]+python_version.split(".")[1]
 pf = open(os.path.join(embedded_python_folder, pythonXX+"._pth"),'a')
 pf.write("./Lib/site-packages/")
 pf.close()"""
 
-os.rename(os.path.join(embedded_python_folder, "python"+python_version.split(".")[0]+python_version.split(".")[1] +"._pth") ,os.path.join(embedded_python_folder, "__python"+python_version.split(".")[0]+python_version.split(".")[1] +"._pth") )
+
 
 """ Pip needs to be added to the interpreter """
 getpip_filename = os.path.join(embedded_python_folder, "get-pip.py")
@@ -146,9 +147,15 @@ except IOError as e:
     print(f"An error has occurred while copying get-pip.py")
     print(e)
     exit()
-call(os.path.join(embedded_python_folder, "python.exe") + " " + os.path.join(embedded_python_folder, "get-pip.py --no-warn-script-location"))
+call(os.path.join(embedded_python_folder, "python.exe") + " " + os.path.join(embedded_python_folder,
+                                                                             "get-pip.py --no-warn-script-location"))
 
 """Download and install of bleeding-rex using pip"""
+for line in fileinput.input(os.path.join(embedded_python_folder, pythonXX+"._pth"), inplace=1):
+    print(line.replace("import site", "#import site").rstrip())
+pf = open(os.path.join(embedded_python_folder, pythonXX+"._pth"),'a')
+pf.write("./Lib/site-packages/")
+pf.close()
 call(os.path.join(embedded_python_folder, "Scripts", "pip") + " install bleeding-rez --no-warn-script-location")
 
 rez_folder = os.path.join(install_folder, _UGCORE_DIR, "rez")
@@ -174,14 +181,18 @@ if include_file:
 else:
     rez_config_file = open(os.path.join(rez_config_filename, "rezconfig.py"), "w+")
 
-# print(f"LOCAL PACKAGE FOLDER: {local_packages_folder}")
-# print(f"RELEASE PACKAGE FOLDER: {release_packages_path}")
-#os.environ["REZ_LOCAL_PACKAGES_PATH"] = local_packages_folder
-#os.environ["REZ_RELEASE_PACKAGES_PATH"] = release_packages_path
-# rez_config_file.write(f"all_parent_variables = True\n")
-rez_config_file.write(f"# The package search path. Rez uses this to find packages. A package with the\n# same name and version in an earlier path takes precedence.\npackages_path = [\n\t\"{local_packages_folder}\",\n\t\"{release_packages_path}\"]\n")
-rez_config_file.write(f"#REZ_LOCAL_PACKAGES_PATH\n# The path that Rez will locally install packages to when rez-build is used\nlocal_packages_path = \"{local_packages_folder}\"\n")
-rez_config_file.write(f"#REZ_RELEASE_PACKAGES_PATH\n# The path that Rez will deploy packages to when rez-release is used. For\n# production use, you will probably want to change this to a site-wide location.\nrelease_packages_path = \"{release_packages_path}\"")
+rez_config_file.write(f"# The package search path. Rez uses this to find packages. A package with the\n"
+                      f"# same name and version in an earlier path takes precedence.\n"
+                      f"packages_path = [\n\t\"{local_packages_folder}\",\n\t\"{release_packages_path}\"]\n")
+
+rez_config_file.write(f"#REZ_LOCAL_PACKAGES_PATH\n"
+                      f"# The path that Rez will locally install packages to when rez-build is used\n"
+                      f"local_packages_path = \"{local_packages_folder}\"\n")
+
+rez_config_file.write(f"#REZ_RELEASE_PACKAGES_PATH\n"
+                      f"# The path that Rez will deploy packages to when rez-release is used. For\n"
+                      f"# production use, you will probably want to change this to a site-wide location.\n"
+                      f"release_packages_path = \"{release_packages_path}\"")
 
 """ Now a package must be setup for the downloaded python interpreter: a package.py is created for a rez-build """
 create_python_pakage_file(embedded_python_folder, python_version)
@@ -189,38 +200,21 @@ create_python_pakage_file(embedded_python_folder, python_version)
 """ HACK: direct edit of Lib/site-packages/rez/rezconfig.py file """
 hack_rezconfig_file(os.path.join(embedded_python_folder, "Lib", "site-packages", "rez", "rezconfig.py"), local_packages_folder, release_packages_path)
 
-
-"""if not os.path.exists(local_packages_folder):
-    os.makedirs(local_packages_folder)
-if not os.path.exists(release_packages_path):
-    os.makedirs(release_packages_path)"""
-
 env_variables = os.environ.copy()
 os.chdir(embedded_python_folder)
 
-# run([os.path.join("Scripts", "rez-bind"), "--quickstart"], shell=True, env=env_variables)
-
+# No rez-bind --quickstart
 run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "platform"], shell=True, env=env_variables)
 run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "arch"], shell=True, env=env_variables)
 run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "os"], shell=True, env=env_variables)
 run([os.path.join("Scripts", "rez-build"), "--install"])
 run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "rez"], shell=True, env=env_variables)
-# run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "rezgui"], shell=True, env=env_variables)
-# run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "setuptools"], shell=True, env=env_variables)
-# run([os.path.join("Scripts", "rez-bind"), "-i", local_packages_folder, "pip"], shell=True, env=env_variables)
+# removed rez-bind of  rezgui, setuptools,pip
 
-#call(os.path.join(embedded_python_folder, "Scripts", "rez-config packages_path"))
-
-"""print(f"Var from os.environ: {env_variables.get('REZ_CONFIG_FILE')}\n")
-run(["echo", "%REZ_CONFIG_FILE%"], shell=True, env=env_variables)
-run([os.path.join(embedded_python_folder, "Scripts", "rez-config"), "--source-list"], shell=True, env=env_variables)
-print("\nVar with ECHO after --source-list")
-run(["echo", "%REZ_CONFIG_FILE%"], shell=True, env=env_variables)
-run([os.path.join(embedded_python_folder, "Scripts", "rez-config"), "packages_path"], shell=True, env=env_variables)
-print("\nVar with ECHO after packages_path")
-run(["echo", "%REZ_CONFIG_FILE%"], shell=True, env=env_variables)
-
-run([os.path.join(embedded_python_folder, "Scripts", "rez-config"), "packages_path"], shell=True, env=env_variables)"""
-
-""" HACK: direct edit of Lib/site-packages/rez/rezconfig.py file: restore original file"""
+""" HACK: restore original Lib/site-packages/rez/rezconfig.py file """
 hack_rezconfig_file(os.path.join(embedded_python_folder, "Lib", "site-packages", "rez", "rezconfig.py"), local_packages_folder, release_packages_path, restore=True)
+
+""" HACK: pythonXX._pth file is renamed so the interpreter is no longer locked and sees rez PYTHONPATH """
+pth_file_old_name = os.path.join(embedded_python_folder, "python"+python_version.split(".")[0]+python_version.split(".")[1] +"._pth")
+pth_file_new_name = os.path.join(embedded_python_folder, "__python"+python_version.split(".")[0]+python_version.split(".")[1] +"._pth")
+os.rename(pth_file_old_name, pth_file_new_name)

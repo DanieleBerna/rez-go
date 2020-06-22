@@ -1,4 +1,5 @@
 echo off
-set arg1=%1
+set python_dir=%1
+set package=%2
 
-.\python -m pip install %arg1%
+%python_dir%\python -m pip install %package%
