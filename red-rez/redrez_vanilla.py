@@ -1,105 +1,96 @@
-from urllib import request
 from shutil import copyfile
-from subprocess import call, run, Popen
-from pathlib import Path
+from subprocess import run
 import os
-import re
 import zipfile
-import fileinput
 import sys
 
-EMBEDDABLE_PYTHON_URL = "https://www.python.org/ftp/python/"  # URL for python releases download
+_PORTABLE_PYTHON_ZIP = "portable_python_374.zip"  # zipped archive of WinPython portable interpreter
+_REZ_ZIP = "rez.zip"  # zipped archive of Rez (cloned from https://github.com/nerdvegas/rez )
+_DEFAULT_INSTALL_FOLDER = r"T:/"
+_UGCORE_DIR = "ugcore"
 
-print(f"Red Rez - Redistributable rez installer\n")
 
-""" The pipeline uses an embedded light Python3 version to install and then run rez.
-A valid Python version is here required.
-Script defaults to 3.7.4 64bit version if nothing is provided."""
+def create_python_pakage_file(interpreter_folder, version):
+    """
+    Create a package.py file used to rez-build an embedded interpreter
+    :param interpreter_folder: folder of the python.exe file
+    :param version: Python (and package) version
+    """
+    try:
+        package_build_file = open(os.path.join(interpreter_folder, "package.py"), "w+")
+        package_build_file.write(f"import os\n\nname = 'python'\nversion = '{version}'\nbuild_command = {{this._bin_path}}/rezbuild.py {{install}}\n\n@early()\n"
+                                 f"def _bin_path():\n\treturn os.getcwd()\n\ndef commands():\n\tglobal env\n\t"
+                                 f"env['PATH'].prepend('{{this._bin_path}}')")
+        package_build_file.close()
+    except IOError as e:
+        print(f"Error while writing package.py file for Python interpreter\n{e}")
+        return False
+    return True
 
-python_version = input("Python version (3.7.4): ") or "3.7.4"
-if re.match("3.[0-9].[0-9]", python_version) is None:
-    print(f"{python_version} is not a valid Python version")
-    exit()
+print(f"RED REZ - Redistributable Rez installer\n")
 
-system = input("OS architecture (64bit): ") or "64"
-if system == "32":
-    system = "win32"
-elif system == "64":
-    system = "amd64"
-else:
-    print(f"{system} is not a valid OS architecture")
-    exit()
+""" The pipeline uses a portable Python 3.7.7 (WinPython) to install and then run rez.
+The pipeline requires all tools to be installed in a local folder that is then remapped to a previously agreed unit."""
 
-""" The pipeline requires all tools to be installed in a local folder that is then remapped to a previously agreed unit.
-Script defaults to user's home directory if nothing is provided."""
-
-install_folder = input("Install folder (User Home)): ") or "D:\\Works\\pipe"  # str(Path.home())
+install_folder = input("Install folder ("+_DEFAULT_INSTALL_FOLDER+"): ") or _DEFAULT_INSTALL_FOLDER
 
 remap_to = input("Remap folder to a new unit (no)? ") or False
 
 if remap_to:
     try:
         remap_to = remap_to.upper()
-        call("subst " + remap_to.upper()+": "+install_folder)
+        run(["subst", (remap_to.upper()+":"), install_folder])
         print(f"{install_folder} is remapped to {remap_to} unit")
         install_folder = remap_to+":\\"
     except:
         print(f"An error has occurred while remapping {install_folder} to {remap_to} unit")
         exit()
 
-zip_filename = f"python-{python_version}-embed-{system}.zip"
-if not os.path.exists(zip_filename):  # Download required embeddable python if not present in script folder
-    download_url = f"{EMBEDDABLE_PYTHON_URL}{python_version}/{zip_filename}"
-    print(f"Downloading embeddable Python from: {download_url}")
-    try:
-        with request.urlopen(download_url) as response, open(zip_filename, 'wb') as out_file:
-            data = response.read()
-            out_file.write(data)
-    except:
-        print(f"An error has occurred while downloading {zip_filename}")
-        exit()
+startup_python_folder = os.path.join(install_folder, _UGCORE_DIR)
+print("Extracting portable Python...")
+with zipfile.ZipFile(os.path.join(os.path.dirname(sys.argv[0]), _PORTABLE_PYTHON_ZIP), 'r') as zip_ref:
+    zip_ref.extractall(startup_python_folder)
+startup_python_folder = os.path.join(startup_python_folder, "python")
 
-with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
-    zip_ref.extractall(os.path.join(install_folder, "core", "python"))
+""" REZ install script"""
+temp_rez_folder = (os.path.join(install_folder,  _UGCORE_DIR, "temp_rez"))
+print("Extracting rez source...")
+with zipfile.ZipFile(os.path.join(os.path.dirname(sys.argv[0]), _REZ_ZIP), 'r') as zip_ref:
+    zip_ref.extractall(temp_rez_folder)
+rez_folder = os.path.join(install_folder, _UGCORE_DIR, "rez")
+print("Runnint rez install.py...")
+run([os.path.join(startup_python_folder, "python.exe"), os.path.join(temp_rez_folder, "rez", "install.py"), "-v", os.path.join(install_folder, _UGCORE_DIR, "rez")])
+rez_bin_folder = os.path.join(rez_folder, "Scripts", "rez")
 
+include_file = True
+if include_file:
+    rez_config_filename = os.path.join(rez_folder, "rezconfig.py")
+else:
+    rez_config_filename = rez_folder
 
-""" python37._pth needs to be edited uncommenting the import site line"""
-for line in fileinput.input(os.path.join(install_folder, "core", "python", "python37._pth"), inplace=1):
-    print(line.replace("#import site", "import site").rstrip())
+os.environ["REZ_CONFIG_FILE"] = rez_config_filename
+run(["setx.exe", "REZ_CONFIG_FILE", rez_config_filename])
+print(f"\nREZ_CONFIG_FILE set to: {os.environ.get('REZ_CONFIG_FILE')}\n")
 
-with zipfile.ZipFile(os.path.join(install_folder, "core", "python", "python37.zip"), 'r') as zip_ref:
-    pyzip_folder = os.path.join(install_folder, "core", "python", "python37zip")
-    zip_ref.extractall(pyzip_folder)
-    zip_ref.close()
-    os.remove(os.path.join(install_folder, "core", "python", "python37.zip"))
-    os.rename(pyzip_folder, os.path.join(install_folder, "core", "python", "python37.zip"))
+local_packages_folder = os.path.join(rez_folder,'packages').replace('\\','/')
+release_packages_path = input("Release rez packages folder (\\\\ASH\Storage\.rez\packages): ") or r"\\ASH\Storage\.rez\packages"
+release_packages_path = os.path.join(release_packages_path, "rez", "packages").replace('\\', '/')
 
-getpip_filename = os.path.join(install_folder, "core", "python", "get-pip.py")
-if not os.path.exists("get-pip.py"):  # Download get-pip.py if not present in script folder
-    download_url = "https://bootstrap.pypa.io/get-pip.py"
-    print(f"Downloading get-pip.py from: {download_url}")
-    try:
-        with request.urlopen(download_url) as response, open("get-pip.py", 'wb') as out_file:
-            data = response.read()
-            out_file.write(data)
-    except:
-        print(f"An error has occurred while downloading {zip_filename}")
-        exit()
-try:
-    copyfile("get-pip.py", getpip_filename)
-except IOError as e:
-    print(f"An error has occurred while copying {zip_filename}")
-    print(e)
-    exit()
+if include_file:
+    rez_config_file = open(os.path.join(rez_config_filename), "w+")
+else:
+    rez_config_file = open(os.path.join(rez_config_filename, "rezconfig.py"), "w+")
 
-embedded_python_folder = os.path.join(install_folder, "core", "python")
+rez_config_file.write(f"# The package search path. Rez uses this to find packages. A package with the\n# same name and version in an earlier path takes precedence.\npackages_path = [\n\t\"{local_packages_folder}\",\n\t\"{release_packages_path}\"]\n")
+rez_config_file.write(f"#REZ_LOCAL_PACKAGES_PATH\n# The path that Rez will locally install packages to when rez-build is used\nlocal_packages_path = \"{local_packages_folder}\"\n")
+rez_config_file.write(f"#REZ_RELEASE_PACKAGES_PATH\n# The path that Rez will deploy packages to when rez-release is used. For\n# production use, you will probably want to change this to a site-wide location.\nrelease_packages_path = \"{release_packages_path}\"")
 
-call(os.path.join(embedded_python_folder, "python.exe") + " " + os.path.join(embedded_python_folder, "get-pip.py --no-warn-script-location"))
+env_variables = os.environ.copy()
 
-#  call(os.path.join(embedded_python_folder, "Scripts", "pip") + " install bleeding-rez --no-warn-script-location") NO MORE BLEEDING REZ
-
-""" TRY WITH VANILLA REZ """
-with zipfile.ZipFile(os.path.join(os.path.dirname(sys.argv[0]), "rez.zip"), 'r') as zip_ref:
-    zip_ref.extractall(os.path.join(install_folder, "core", "rez-install"))
-run([os.path.join(embedded_python_folder, "python.exe"), os.path.join(install_folder, "core", "rez-install", "rez", "install.py"), "-v", os.path.join(install_folder, "core", "rez")])
-
+os.chdir(startup_python_folder)
+# create_python_pakage_file(startup_python_folder, "3.7.4")
+run([os.path.join(rez_bin_folder, "rez-bind"), "-i", local_packages_folder, "platform"], shell=True, env=env_variables)
+run([os.path.join(rez_bin_folder, "rez-bind"), "-i", local_packages_folder, "arch"], shell=True, env=env_variables)
+run([os.path.join(rez_bin_folder, "rez-bind"), "-i", local_packages_folder, "os"], shell=True, env=env_variables)
+run([os.path.join(rez_bin_folder, "rez-build"), "--install"])
+run([os.path.join(rez_bin_folder, "rez-bind"), "-i", local_packages_folder, "rez"], shell=True, env=env_variables)
