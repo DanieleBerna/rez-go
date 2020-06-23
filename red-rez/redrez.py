@@ -4,8 +4,8 @@ import os
 import zipfile
 import sys
 
-_PORTABLE_PYTHON_ZIP = "portable_python_374.zip"  # zipped archive of WinPython portable interpreter
-_REZ_ZIP = "rez.zip"  # zipped archive of Rez (cloned from https://github.com/nerdvegas/rez )
+_PORTABLE_PYTHON_ZIP = "resources/portable_python_374.zip"  # zipped archive of WinPython portable interpreter
+_REZ_ZIP = "resources/rez.zip"  # zipped archive of Rez (cloned from https://github.com/nerdvegas/rez )
 _DEFAULT_INSTALL_FOLDER = r"T:/"
 _UGCORE_DIR = "ugcore"
 
@@ -109,7 +109,7 @@ os.environ["REZ_CONFIG_FILE"] = rez_config_filename
 run(["setx.exe", "REZ_CONFIG_FILE", rez_config_filename])
 print(f"\nREZ_CONFIG_FILE set to: {os.environ.get('REZ_CONFIG_FILE')}\n")
 
-local_packages_folder = os.path.join(rez_folder,'packages').replace('\\','/')
+local_packages_folder = os.path.join(rez_folder,'packages')#.replace('\\','/')
 release_packages_path = input("Release rez packages folder (\\\\ASH\Storage\.rez\packages): ") or r"\\ASH\Storage\.rez\packages"
 release_packages_path = os.path.join(release_packages_path, "rez", "packages").replace('\\', '/')
 
@@ -118,32 +118,32 @@ if include_file:
 else:
     rez_config_file = open(os.path.join(rez_config_filename, "rezconfig.py"), "w+")
 
-rez_config_file.write(f"# The package search path. Rez uses this to find packages. A package with the\n# same name and version in an earlier path takes precedence.\npackages_path = [\n\t\"{local_packages_folder}\",\n\t\"{release_packages_path}\"]\n")
-rez_config_file.write(f"#REZ_LOCAL_PACKAGES_PATH\n# The path that Rez will locally install packages to when rez-build is used\nlocal_packages_path = \"{local_packages_folder}\"\n")
-rez_config_file.write(f"#REZ_RELEASE_PACKAGES_PATH\n# The path that Rez will deploy packages to when rez-release is used. For\n# production use, you will probably want to change this to a site-wide location.\nrelease_packages_path = \"{release_packages_path}\"")
+rez_config_file.write(f"# The package search path. Rez uses this to find packages. A package with the\n# same name and version in an earlier path takes precedence.\npackages_path = [\n\tr\"{local_packages_folder}\",\n\tr\"{release_packages_path}\"]\n")
+rez_config_file.write(f"#REZ_LOCAL_PACKAGES_PATH\n# The path that Rez will locally install packages to when rez-build is used\nlocal_packages_path = r\"{local_packages_folder}\"\n")
+rez_config_file.write(f"#REZ_RELEASE_PACKAGES_PATH\n# The path that Rez will deploy packages to when rez-release is used. For\n# production use, you will probably want to change this to a site-wide location.\nrelease_packages_path = r\"{release_packages_path}\"")
 
 os.environ["REZ_LOCAL_PACKAGES_PATH"] = local_packages_folder
 os.environ["REZ_RELEASE_PACKAGES_PATH"] = release_packages_path
-env_variables = os.environ  # .copy()
 
 os.chdir(python_interpreter_folder)
 create_python_pakage_file(python_interpreter_folder, "3.7.4")
 create_python_rezbuild_file(python_interpreter_folder)
-"""run([os.path.join(rez_bin_folder, "rez-build"), "-i"], env=env_variables)
-run([os.path.join(rez_bin_folder, "rez-bind"), "platform"], env=env_variables)
-run([os.path.join(rez_bin_folder, "rez-bind"), "arch"], env=env_variables)
-run([os.path.join(rez_bin_folder, "rez-bind"), "os"], env=env_variables)"""
-
 run([os.path.join(rez_bin_folder, "rez-build"), "-i"])
 run([os.path.join(rez_bin_folder, "rez-bind"), "platform"])
 run([os.path.join(rez_bin_folder, "rez-bind"), "arch"])
 run([os.path.join(rez_bin_folder, "rez-bind"), "os"])
 
-# run([os.path.join(rez_bin_folder, "rez-bind"), "-i", local_packages_folder, "rez"], shell=True, env=env_variables)
-# "-i", local_packages_folder,
 try:
     rmtree(temp_rez_folder)
 except OSError as e:
     print(f"Error while removing {temp_rez_folder}:  {e.strerror}")
+
+"""Creation of a simple batch file for testing purpose inside install_folder"""
+test_rez_file = open(os.path.join(install_folder, _UGCORE_DIR,"test_rez.bat"), "w+")
+test_rez_file.write(f"IF \"%REZ_CONFIG_FILE%\"==\"\" SET REZ_CONFIG_FILE={os.path.join(install_folder, _UGCORE_DIR, 'rez','rezconfig.py')}\n"
+                    f"{os.path.join(install_folder, _UGCORE_DIR, 'rez', 'Scripts', 'rez','rez-env')} python --"
+                    f" {os.path.join(install_folder, _UGCORE_DIR, 'rez', 'Scripts', 'rez','rez-context')}"
+                    f"\npause")
+
 
 
