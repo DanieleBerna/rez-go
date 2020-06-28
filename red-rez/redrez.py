@@ -3,6 +3,7 @@ from subprocess import run
 import os
 import zipfile
 import sys
+import winreg
 
 _PORTABLE_PYTHON_ZIP = "resources/portable_python_374.zip"  # zipped archive of WinPython portable interpreter
 _REZ_ZIP = "resources/rez.zip"  # zipped archive of Rez (cloned from https://github.com/nerdvegas/rez )
@@ -79,6 +80,14 @@ def install():
             run(["subst", (remap_to.upper()+":"), install_folder])
             print(f"{install_folder} is remapped to {remap_to} unit")
             install_folder = remap_to+":\\"
+
+            try:
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'SOFTWARE\Microsoft\Windows\CurrentVersion\Run', 0, winreg.KEY_ALL_ACCESS)
+                winreg.SetValueEx(key, "Map_T_unit", 0, winreg.REG_SZ, f"subst {remap_to.upper()}: {install_folder}")
+                winreg.CloseKey(key)
+            except WindowsError:
+                print("An error has occurred while setting SUBST key registry")
+                exit()
         except:
             print(f"An error has occurred while remapping {install_folder} to {remap_to} unit")
             exit()
