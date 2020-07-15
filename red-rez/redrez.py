@@ -107,6 +107,17 @@ def install():
     run([os.path.join(python_interpreter_folder, "python.exe"), os.path.join(temp_rez_folder, "rez", "install.py"), "-v", os.path.join(install_folder, _UGCORE_DIR, "rez")])
     rez_bin_folder = os.path.join(rez_folder, "Scripts", "rez")
 
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Environment', 0,
+                             winreg.KEY_ALL_ACCESS)
+        val, type = winreg.QueryValueEx(key, "Path")
+        if (val.replace("\\", "/")).find(rez_bin_folder.replace("\\", '/')) is -1:
+            val = val + ";" + rez_bin_folder
+            winreg.SetValueEx(key, "Path", type, winreg.REG_EXPAND_SZ, val)
+        winreg.CloseKey(key)
+    except WindowsError:
+        pass
+
     include_file = True
     if include_file:
         rez_config_filename = os.path.join(rez_folder, "rezconfig.py")
@@ -119,7 +130,7 @@ def install():
 
     local_packages_folder = os.path.join(rez_folder,'packages')#.replace('\\','/')
     release_packages_path = input("Release rez packages folder (\\\\ASH\Storage\.rez\packages): ") or r"\\ASH\Storage\.rez\packages"
-    release_packages_path = os.path.join(release_packages_path, "rez", "packages").replace('\\', '/')
+    # release_packages_path = os.path.join(release_packages_path, "rez", "packages").replace('\\', '/')
 
     if include_file:
         rez_config_file = open(os.path.join(rez_config_filename), "w+")
@@ -154,9 +165,14 @@ def install():
                         f"\npause")
 
 
+def release():
+    pass
+
+
 if __name__ == "__main__":
     print(f"RED REZ - Redistributable Rez installer\n")
     if len(sys.argv) > 1:
-        pass
+        if sys.argv[1] == "r":
+            release()
     else:
         install()
