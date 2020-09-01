@@ -72,14 +72,13 @@ def install():
 
     install_folder = input("Install folder ("+_DEFAULT_INSTALL_FOLDER+"): ") or _DEFAULT_INSTALL_FOLDER
 
-    remap_to = input("Remap folder to a new unit (no)? ") or False
+    remap_to = input("Remap folder to new unit (leave empty if no remapped is required): ") or False
 
     if remap_to:
         try:
             remap_to = remap_to.upper()
             run(["subst", (remap_to.upper()+":"), install_folder])
             print(f"{install_folder} is remapped to {remap_to} unit")
-            install_folder = remap_to+":\\"
 
             try:
                 key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'SOFTWARE\Microsoft\Windows\CurrentVersion\Run', 0, winreg.KEY_ALL_ACCESS)
@@ -88,6 +87,8 @@ def install():
             except WindowsError:
                 print("An error has occurred while setting SUBST key registry")
                 exit()
+
+            install_folder = remap_to+":\\"
         except:
             print(f"An error has occurred while remapping {install_folder} to {remap_to} unit")
             exit()
