@@ -75,14 +75,13 @@ def create_python_rezbuild_file(interpreter_folder):
     return True
 
 
-def install_rez():
+def setup_install_folder():
     """
-    Perform a rez installation on a machine.
-    Installation will include a portable WinPython that will be used for 'rez' setup.
+    Ask user for installation folder and optional remap unit (if provided perform remap too)
     """
-
     install_folder = input("Install folder ("+_DEFAULT_INSTALL_FOLDER+"): ") or _DEFAULT_INSTALL_FOLDER  # Ask user for a local install folder
     remap_to = input("Remap folder to new unit (leave empty if no remapped is required): ") or False  # Ask user for an optional remap unit for the install folder
+    release_packages_path = input("Release rez packages folder (\\\\ASH\Storage\.rez\packages): ") or r"\\ASH\Storage\.rez\packages"
 
     if remap_to:
         try:
@@ -104,6 +103,84 @@ def install_rez():
             print(f"An error has occurred while remapping {install_folder} to {remap_to} unit")
             exit()
 
+    return install_folder, release_packages_path
+
+
+def setup_rezconfig_file(rez_folder, release_packages_path):
+    """
+    Write a rezconfig.py file for packages folder settings and create an env var to let rez reading it
+    """
+
+    rez_config_filename = os.path.join(rez_folder, "rezconfig.py")
+    os.environ["REZ_CONFIG_FILE"] = rez_config_filename
+    run(["setx.exe", "REZ_CONFIG_FILE", rez_config_filename])
+    print(f"\nREZ_CONFIG_FILE set to: {os.environ.get('REZ_CONFIG_FILE')}\n")
+
+    local_packages_folder = os.path.join(rez_folder, 'packages')
+
+    try:
+        rez_config_file = open(os.path.join(rez_config_filename), "w+")
+        rez_config_file.write(f"# The package search path. Rez uses this to find packages. A package with the\n"
+                              f"# same name and version in an earlier path takes precedence.\n"
+                              f"packages_path = [\n\tr\"{local_packages_folder}\",\n\tr\"{release_packages_path}\"]\n")
+        rez_config_file.write(f"#REZ_LOCAL_PACKAGES_PATH\n"
+                              f"# The path that Rez will locally install packages to when rez-build is used\n"
+                              f"local_packages_path = r\"{local_packages_folder}\"\n")
+        rez_config_file.write(f"#REZ_RELEASE_PACKAGES_PATH\n"
+                              f"# The path that Rez will deploy packages to when rez-release is used. For\n"
+                              f"# production use, you will probably want to change this to a site-wide location.\n"
+                              f"release_packages_path = r\"{release_packages_path}\"")
+
+    except IOError:
+        print(f"An error has occurred while creating rezconfig.py inside {rez_folder} ")
+        exit()
+
+    # Add the packages paths to current env
+    os.environ["REZ_LOCAL_PACKAGES_PATH"] = local_packages_folder
+    os.environ["REZ_RELEASE_PACKAGES_PATH"] = release_packages_path
+    return rez_config_filename
+
+
+def add_rez_to_path(rez_bin_folder):
+    """
+    Add bin folder of an already installed rez to user's Path env var
+    """
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Environment', 0,
+                             winreg.KEY_ALL_ACCESS)
+        val, type = winreg.QueryValueEx(key, "Path")
+        if (val.replace("\\", "/")).find(rez_bin_folder.replace("\\", '/')) is -1:
+            val = val + ";" + rez_bin_folder
+            winreg.SetValueEx(key, "Path", type, winreg.REG_EXPAND_SZ, val)
+        winreg.CloseKey(key)
+    except WindowsError:
+        pass
+
+
+def rez_build_machine_packages(rez_bin_folder, python_interpreter_folder):
+    """
+    Build some essential rez packages for the user's machine
+    """
+    # rez-build WinPython package. This will be the default Python package used by rez
+    os.chdir(python_interpreter_folder)
+    create_python_pakage_file(python_interpreter_folder, "3.7.4")
+    create_python_rezbuild_file(python_interpreter_folder)
+    run([os.path.join(rez_bin_folder, "rez-build"), "-i"])
+
+    # rez-bind some packages
+    run([os.path.join(rez_bin_folder, "rez-bind"), "platform"])
+    run([os.path.join(rez_bin_folder, "rez-bind"), "arch"])
+    run([os.path.join(rez_bin_folder, "rez-bind"), "os"])
+
+
+def install_rez():
+    """
+    Perform a rez installation on a machine.
+    Installation will include a portable WinPython that will be used for 'rez' setup.
+    """
+
+    install_folder, release_packages_path = setup_install_folder()  # Get install and release folders
+
     # Unpack portable WinPython
     print("Extracting portable Python...")
     with zipfile.ZipFile(os.path.join(os.path.dirname(sys.argv[0]), _PORTABLE_PYTHON_ZIP), 'r') as zip_ref:
@@ -120,55 +197,16 @@ def install_rez():
     # Run rez install.py using WinPython, to permanently link rez to this interpreter
     print("Running rez install.py...")
     run([os.path.join(python_interpreter_folder, "python.exe"), os.path.join(temp_rez_folder, "rez", "install.py"), "-v", os.path.join(install_folder, _UGCORE_DIR, "rez")])
-    rez_bin_folder = os.path.join(rez_folder, "Scripts", "rez")
 
     # Add installed rez to user's Path env var
-    try:
-        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Environment', 0,
-                             winreg.KEY_ALL_ACCESS)
-        val, type = winreg.QueryValueEx(key, "Path")
-        if (val.replace("\\", "/")).find(rez_bin_folder.replace("\\", '/')) is -1:
-            val = val + ";" + rez_bin_folder
-            winreg.SetValueEx(key, "Path", type, winreg.REG_EXPAND_SZ, val)
-        winreg.CloseKey(key)
-    except WindowsError:
-        pass
+    rez_bin_folder = os.path.join(rez_folder, "Scripts", "rez")
+    add_rez_to_path(rez_bin_folder)
 
-    # Write a rezconfig.py file for packages folder settings and create an env var to let rez reading it
-    rez_config_filename = os.path.join(rez_folder, "rezconfig.py")
-    os.environ["REZ_CONFIG_FILE"] = rez_config_filename
-    run(["setx.exe", "REZ_CONFIG_FILE", rez_config_filename])
-    print(f"\nREZ_CONFIG_FILE set to: {os.environ.get('REZ_CONFIG_FILE')}\n")
+    # Write rezconfig.py file
+    setup_rezconfig_file(rez_folder, release_packages_path)
 
-    local_packages_folder = os.path.join(rez_folder, 'packages')#.replace('\\','/')
-    release_packages_path = input("Release rez packages folder (\\\\ASH\Storage\.rez\packages): ") or r"\\ASH\Storage\.rez\packages"
-
-    rez_config_file = open(os.path.join(rez_config_filename), "w+")
-    rez_config_file.write(f"# The package search path. Rez uses this to find packages. A package with the\n"
-                          f"# same name and version in an earlier path takes precedence.\n"
-                          f"packages_path = [\n\tr\"{local_packages_folder}\",\n\tr\"{release_packages_path}\"]\n")
-    rez_config_file.write(f"#REZ_LOCAL_PACKAGES_PATH\n"
-                          f"# The path that Rez will locally install packages to when rez-build is used\n"
-                          f"local_packages_path = r\"{local_packages_folder}\"\n")
-    rez_config_file.write(f"#REZ_RELEASE_PACKAGES_PATH\n"
-                          f"# The path that Rez will deploy packages to when rez-release is used. For\n"
-                          f"# production use, you will probably want to change this to a site-wide location.\n"
-                          f"release_packages_path = r\"{release_packages_path}\"")
-
-    # Add the packages paths to current env
-    os.environ["REZ_LOCAL_PACKAGES_PATH"] = local_packages_folder
-    os.environ["REZ_RELEASE_PACKAGES_PATH"] = release_packages_path
-
-    # rez-build WinPython package. This will be the default Python package used by rez
-    os.chdir(python_interpreter_folder)
-    create_python_pakage_file(python_interpreter_folder, "3.7.4")
-    create_python_rezbuild_file(python_interpreter_folder)
-    run([os.path.join(rez_bin_folder, "rez-build"), "-i"])
-
-    # rez-bind some packages
-    run([os.path.join(rez_bin_folder, "rez-bind"), "platform"])
-    run([os.path.join(rez_bin_folder, "rez-bind"), "arch"])
-    run([os.path.join(rez_bin_folder, "rez-bind"), "os"])
+    # rez-build WinPython package (default Python package used by rez) and bind machine packages (platform,arch,os)
+    rez_build_machine_packages(rez_bin_folder, python_interpreter_folder)
 
     # Remove temp folder
     try:
@@ -182,6 +220,22 @@ def install_rez():
                         f"{os.path.join(install_folder, _UGCORE_DIR, 'rez', 'Scripts', 'rez','rez-env')} python --"
                         f" {os.path.join(install_folder, _UGCORE_DIR, 'rez', 'Scripts', 'rez','rez-context')}"
                         f"\npause")
+
+    # Zip installed rez, ready for redistributing
+    red_rez_zip = zipfile.ZipFile('RedistributableRez.zip', 'w', zipfile.ZIP_DEFLATED)
+    for root, dirs, files in os.walk(os.path.join(install_folder, _UGCORE_DIR)):
+        for file in files:
+            red_rez_zip.write(os.path.join(root, file))
+    red_rez_zip.close()
+
+
+def deploy_rez():
+    """
+    Unpack and setup an existing rez on the machine.
+    """
+
+    install_folder, release_packages_path = setup_install_folder()  # Get install and release folders
+    # TODO
 
 
 if __name__ == "__main__":
