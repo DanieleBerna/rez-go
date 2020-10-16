@@ -14,10 +14,16 @@ import winreg
 from shutil import rmtree
 from subprocess import run
 
+_TOOLSET_NAME = "utgtools"
+_CORE_DIR = "core"
+_DEFAULT_INSTALL_FOLDER = r"C:/"
+_DEFAULT_MAP_UNIT = "T"
+_REMAP_REGISTRY_VALUE_NAME = "Map_utgtools_unit"
+_DEFAULT_RELEASE_FOLDER = r"C:/"+_TOOLSET_NAME
+_LAUNCHERS_DIR = "launchers"
+
 _PORTABLE_PYTHON_ZIP = "resources/portable_python_374.zip"  # zipped archive of WinPython portable interpreter
 _REZ_ZIP = "resources/rez.zip"  # zipped archive of Rez (cloned from https://github.com/nerdvegas/rez )
-_DEFAULT_INSTALL_FOLDER = r"T:/"
-_UGCORE_DIR = "ugcore"
 
 
 def create_python_pakage_file(interpreter_folder, version):
@@ -79,9 +85,16 @@ def setup_install_folder():
     """
     Ask user for installation folder and optional remap unit (if provided perform remap too)
     """
-    install_folder = input("Install folder ("+_DEFAULT_INSTALL_FOLDER+"): ") or _DEFAULT_INSTALL_FOLDER  # Ask user for a local install folder
-    remap_to = input("Remap folder to new unit (leave empty if no remapped is required): ") or False  # Ask user for an optional remap unit for the install folder
-    release_packages_path = input("Release rez packages folder (\\\\ASH\Storage\.rez\packages): ") or r"\\ASH\Storage\.rez\packages"
+    install_folder = input("Local install folder ("+_DEFAULT_INSTALL_FOLDER+_TOOLSET_NAME+"): ") or _DEFAULT_INSTALL_FOLDER+_TOOLSET_NAME  # Ask user for a local install folder
+    remap_to = input("Remap folder to new unit ("+_DEFAULT_MAP_UNIT+" or leave empty if mapping is not required): ") or _DEFAULT_MAP_UNIT  # Ask user for an optional remap unit for the install folder
+    release_packages_path = input("Release rez packages folder ("+_DEFAULT_RELEASE_FOLDER+"): ") or _DEFAULT_RELEASE_FOLDER
+    release_packages_path = release_packages_path + r"\\" + r"\.rez\packages"
+
+    if not os.path.exists(install_folder):
+        os.makedirs(install_folder)
+
+    if not os.path.exists(release_packages_path):
+        os.makedirs(release_packages_path)
 
     if remap_to:
         try:
@@ -92,7 +105,13 @@ def setup_install_folder():
             try:
                 # Add a registry key for remapping the folder at Windows startup
                 key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'SOFTWARE\Microsoft\Windows\CurrentVersion\Run', 0, winreg.KEY_ALL_ACCESS)
-                winreg.SetValueEx(key, "Map_T_unit", 0, winreg.REG_SZ, f"subst {remap_to.upper()}: {install_folder}")
+
+                try:  # If it exists, remove a previously set key value
+                    winreg.DeleteValue(key, _REMAP_REGISTRY_VALUE_NAME)
+                except:
+                    pass
+
+                winreg.SetValueEx(key, _REMAP_REGISTRY_VALUE_NAME, 0, winreg.REG_SZ, f"subst {remap_to.upper()}: {install_folder}")
                 winreg.CloseKey(key)
             except WindowsError:
                 print("An error has occurred while setting SUBST key registry")
@@ -180,23 +199,24 @@ def install_rez():
     """
 
     install_folder, release_packages_path = setup_install_folder()  # Get install and release folders
+    utgtools_folder = os.path.join(install_folder, _CORE_DIR)
 
     # Unpack portable WinPython
     print("Extracting portable Python...")
     with zipfile.ZipFile(os.path.join(os.path.dirname(sys.argv[0]), _PORTABLE_PYTHON_ZIP), 'r') as zip_ref:
-        zip_ref.extractall(os.path.join(install_folder, _UGCORE_DIR))
-    python_interpreter_folder = os.path.join(install_folder, _UGCORE_DIR, "python")
+        zip_ref.extractall(utgtools_folder)
+    python_interpreter_folder = os.path.join(utgtools_folder, "python")
 
     # Unpack rez
-    temp_rez_folder = (os.path.join(install_folder,  _UGCORE_DIR, "temp_rez"))
+    temp_rez_folder = (os.path.join(utgtools_folder, "temp_rez"))
     print("Extracting rez source...")
     with zipfile.ZipFile(os.path.join(os.path.dirname(sys.argv[0]), _REZ_ZIP), 'r') as zip_ref:
         zip_ref.extractall(temp_rez_folder)
-    rez_folder = os.path.join(install_folder, _UGCORE_DIR, "rez")
+    rez_folder = os.path.join(utgtools_folder, "rez")
 
     # Run rez install.py using WinPython, to permanently link rez to this interpreter
     print("Running rez install.py...")
-    run([os.path.join(python_interpreter_folder, "python.exe"), os.path.join(temp_rez_folder, "rez", "install.py"), "-v", os.path.join(install_folder, _UGCORE_DIR, "rez")])
+    run([os.path.join(python_interpreter_folder, "python.exe"), os.path.join(temp_rez_folder, "rez", "install.py"), "-v", os.path.join(utgtools_folder, "rez")])
 
     # Add installed rez to user's Path env var
     rez_bin_folder = os.path.join(rez_folder, "Scripts", "rez")
@@ -215,17 +235,40 @@ def install_rez():
         print(f"Error while removing {temp_rez_folder}:  {e.strerror}")
 
     # Create of a simple batch file for testing purpose inside install_folder
-    test_rez_file = open(os.path.join(install_folder, _UGCORE_DIR,"test_rez.bat"), "w+")
-    test_rez_file.write(f"IF \"%REZ_CONFIG_FILE%\"==\"\" SET REZ_CONFIG_FILE={os.path.join(install_folder, _UGCORE_DIR, 'rez','rezconfig.py')}\n"
-                        f"{os.path.join(install_folder, _UGCORE_DIR, 'rez', 'Scripts', 'rez','rez-env')} python --"
-                        f" {os.path.join(install_folder, _UGCORE_DIR, 'rez', 'Scripts', 'rez','rez-context')}"
-                        f"\npause")
+    launchers_dir_fullpath = os.path.join(utgtools_folder, _LAUNCHERS_DIR)
 
+    if not os.path.exists(launchers_dir_fullpath):
+        os.makedirs(launchers_dir_fullpath)
+    test_rez_file = open(os.path.join(launchers_dir_fullpath, "test_rez.bat"), "w+")
+    """test_rez_file.write(#f"IF \"%REZ_CONFIG_FILE%\"==\"\" SET REZ_CONFIG_FILE={os.path.join(install_folder, _CORE_DIR, 'rez','rezconfig.py')}\n"
+                        f"{os.path.join(install_folder, _CORE_DIR, 'rez', 'Scripts', 'rez','rez-env')} python --"
+                        f" {os.path.join(install_folder, _CORE_DIR, 'rez', 'Scripts', 'rez','rez-context')}"
+                        f"\npause")"""
+    test_rez_file.write("rez-env python -- rez-context\npause")
+    test_rez_file.close()
+
+    os.environ["UTGTOOLS"] = utgtools_folder
+    run(["setx.exe", "UTGTOOLS", utgtools_folder])
+    print(f"\nUTGTOOLS env var set\n")
+    return utgtools_folder
+
+
+def zip_utgtools(utgtools_folder):
     # Zip installed rez, ready for redistributing
-    red_rez_zip = zipfile.ZipFile('RedistributableRez.zip', 'w', zipfile.ZIP_DEFLATED)
-    for root, dirs, files in os.walk(os.path.join(install_folder, _UGCORE_DIR)):
+
+    if not os.path.exists(os.path.join(utgtools_folder, "redist")):
+        os.makedirs(os.path.join(utgtools_folder, "redist"))
+
+    red_rez_zip = zipfile.ZipFile(os.path.join(utgtools_folder, "redist",'RedistributableRez.zip'), 'w', zipfile.ZIP_STORED)
+
+    core_folder = os.path.join(utgtools_folder, _CORE_DIR)
+    zip_root_folder = os.path.basename(core_folder)
+    for root, dirs, files in os.walk(core_folder):
         for file in files:
-            red_rez_zip.write(os.path.join(root, file))
+            file_path = os.path.join(root, file)
+            parent_path = os.path.relpath(file_path, core_folder)
+            arcname = os.path.join(zip_root_folder, parent_path)
+            red_rez_zip.write(file_path, arcname)
     red_rez_zip.close()
 
 
@@ -240,4 +283,5 @@ def deploy_rez():
 
 if __name__ == "__main__":
     print(f"RED REZ - Redistributable Rez installer\n")
-    install_rez()
+    utgtools_folder = install_rez()
+    zip_utgtools(utgtools_folder)

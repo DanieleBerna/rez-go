@@ -1,25 +1,17 @@
-import os
-_DEFAULT_INSTALL_FOLDER = r"T:/"
-_UGCORE_DIR = "ugcore"
-import shutil
 import zipfile
+import os
 
-if os.path.exists(os.path.join(_DEFAULT_INSTALL_FOLDER, _UGCORE_DIR, "python")) and os.path.exists(os.path.join(_DEFAULT_INSTALL_FOLDER, _UGCORE_DIR, "rez")):
-    print("ugcore presente sul pc")
-    #os.chdir(os.path.join(_DEFAULT_INSTALL_FOLDER, _UGCORE_DIR))
+if not os.path.exists("C:\\utgtools\\redist"):
+    os.makedirs("C:\\utgtools\\redist")
 
-    """zf = zipfile.ZipFile('ugcore.zip', mode='w')
-    try:
-        zf.write(os.path.join(_DEFAULT_INSTALL_FOLDER, _UGCORE_DIR, "python"))
-    finally:
-        zf.close()"""
+red_rez_zip = zipfile.ZipFile(os.path.join("C:\\utgtools\\redist", 'RedistributableRez.zip'), 'w', zipfile.ZIP_STORED)
 
-    for dirname, subdirs, files in os.walk(os.path.join(_DEFAULT_INSTALL_FOLDER, _UGCORE_DIR)):
-        redistributable_folders = []
-        if 'exclude directory' in subdirs:
-            subdirs.remove('exclude directory')
-        zf.write(dirname)
-        for filename in files:
-            zf.write(os.path.join(dirname, filename))
-    zf.close()
-
+core_folder = "C:\\utgtools\\core\\"
+zip_root_folder = os.path.basename(core_folder)
+for root, dirs, files in os.walk(core_folder):
+    for file in files:
+        file_path = os.path.join(root, file)
+        parent_path = os.path.relpath(file_path, core_folder)
+        arcname = os.path.join(zip_root_folder, parent_path)
+        red_rez_zip.write(file_path, arcname)
+red_rez_zip.close()
