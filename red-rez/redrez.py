@@ -250,6 +250,7 @@ def install_rez():
     os.environ["UTGTOOLS"] = utgtools_folder
     run(["setx.exe", "UTGTOOLS", utgtools_folder])
     print(f"\nUTGTOOLS env var set\n")
+
     return utgtools_folder
 
 
@@ -272,16 +273,7 @@ def zip_utgtools(utgtools_folder):
     red_rez_zip.close()
 
 
-def deploy_rez():
-    """
-    Unpack and setup an existing rez on the machine.
-    """
-
-    install_folder, release_packages_path = setup_install_folder()  # Get install and release folders
-    # TODO
-
-
 if __name__ == "__main__":
     print(f"RED REZ - Redistributable Rez installer\n")
     utgtools_folder = install_rez()
-    zip_utgtools(utgtools_folder)
+    # zip_utgtools(utgtools_folder)
