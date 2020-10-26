@@ -7,8 +7,11 @@ If the install is done in a previously agreed path between users, the whole inst
 when installing to a local folder it's possible to remap it to a previously agreed unit to make the tool portable.
 """
 
+"""TEST"""
+"""redrez.py -i local_folder -m map_unit -r release_folder"""
 import os
 import sys
+import argparse
 import zipfile
 import winreg
 from shutil import rmtree
@@ -24,6 +27,16 @@ _LAUNCHERS_DIR = "launchers"
 
 _PORTABLE_PYTHON_ZIP = "resources/portable_python_374.zip"  # zipped archive of WinPython portable interpreter
 _REZ_ZIP = "resources/rez.zip"  # zipped archive of Rez (cloned from https://github.com/nerdvegas/rez )
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("local_folder", type=str,
+                        help="local folder for rez setup")
+    parser.add_argument("-i", "--install", action="store_true",
+                        help="install a brand new rez in local folder")
+    args = parser.parse_args()
+    print(args)
 
 
 def create_python_pakage_file(interpreter_folder, version):
@@ -275,5 +288,6 @@ def zip_utgtools(utgtools_folder):
 
 if __name__ == "__main__":
     print(f"RED REZ - Redistributable Rez installer\n")
-    utgtools_folder = install_rez()
+    parse_arguments()
+    #utgtools_folder = install_rez()
     # zip_utgtools(utgtools_folder)
