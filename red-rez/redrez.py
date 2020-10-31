@@ -205,7 +205,7 @@ def rez_build_machine_packages(rez_bin_folder, python_interpreter_folder):
     run([os.path.join(rez_bin_folder, "rez-bind"), "os"])
 
 
-def install_rez(local_folder, unit, release_folder, add_to_path=False):
+def install_rez(local_folder, unit, release_folder, add_to_path):
     """
     Perform a rez installation on a machine.
     Installation will include a portable WinPython that will be used for 'rez' setup.
@@ -267,11 +267,11 @@ def install_rez(local_folder, unit, release_folder, add_to_path=False):
     print(f"\nUTGTOOLS env var set\n")
 
     installation_log_file = open(os.path.join(utgtools_folder, "installation_log.txt"), "w+")
-    """installation_log_file.write(f"local folder:{local_folder}\n"
+    installation_log_file.write(f"local folder:{local_folder}\n"
                                 f"map unit:{unit.lower()}\n"
                                 f"install folder:{install_folder}\n"
                                 f"release folder:{release_folder}")
-    installation_log_file.close()"""
+    installation_log_file.close()
 
     return utgtools_folder
 
@@ -310,6 +310,9 @@ def parse_arguments():
         p.add_argument("-r", "--release", action="store", type=str, dest="release_folder",
                         help="Set a remote folder as release_packages_path")
 
+        p.add_argument("-p", "--path", action="store_true", dest="add_to_path",
+                       help="Add rez to user Path environment variable")
+
     parser.add_argument("local_folder", type=str,
                           help="rez local folder")
 
@@ -320,7 +323,7 @@ def parse_arguments():
               f"Local folder: {args.local_folder}\n"
               f"Map unit: {args.unit}\n"
               f"Remote packages folder: {args.release_folder}")
-        utgtools_folder = install_rez(args.local_folder, args.unit, args.release_folder)
+        utgtools_folder = install_rez(args.local_folder, args.unit, args.release_folder, args.add_to_path)
         print(f"Success - Rez is now ready in: {utgtools_folder}")
 
     if args.mode == "pack":
