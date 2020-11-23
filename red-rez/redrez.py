@@ -7,10 +7,15 @@ If the install is done in a previously agreed path between users, the whole inst
 when installing to a local folder it's possible to remap it to a previously agreed unit to make the tool portable.
 """
 
+"""TEST"""
+"""redrez.py -i local_folder -m map_unit -r release_folder"""
 import os
 import sys
+import re
+import argparse
 import zipfile
 import winreg
+
 from shutil import rmtree
 from subprocess import run
 
@@ -81,61 +86,67 @@ def create_python_rezbuild_file(interpreter_folder):
     return True
 
 
-def setup_install_folder():
+def setup_folder_structure(local_folder, unit=None, release_folder=None):
     """
-    Ask user for installation folder and optional remap unit (if provided perform remap too)
+    Create all needed folders and optionally remap local folder to a new unit
     """
-    install_folder = input("Local install folder ("+_DEFAULT_INSTALL_FOLDER+_TOOLSET_NAME+"): ") or _DEFAULT_INSTALL_FOLDER+_TOOLSET_NAME  # Ask user for a local install folder
-    remap_to = input("Remap folder to new unit ("+_DEFAULT_MAP_UNIT+" or leave empty if mapping is not required): ") or _DEFAULT_MAP_UNIT  # Ask user for an optional remap unit for the install folder
-    release_packages_path = input("Release rez packages folder ("+_DEFAULT_RELEASE_FOLDER+"): ") or _DEFAULT_RELEASE_FOLDER
-    release_packages_path = release_packages_path + r"\\" + r"\.rez\packages"
-
+    install_folder = os.path.join(local_folder, _TOOLSET_NAME)  #
     if not os.path.exists(install_folder):
         os.makedirs(install_folder)
 
-    if not os.path.exists(release_packages_path):
-        os.makedirs(release_packages_path)
-
-    if remap_to:
+    if unit is not None and re.fullmatch("[a-z]", unit.lower()) and not os.path.exists(unit.upper()+":\\"):
         try:
-            remap_to = remap_to.upper()
-            run(["subst", (remap_to.upper()+":"), install_folder])  # Immediately remap the folder for the current session
+            remap_to = unit.upper()
+            run(["subst", (remap_to.upper() + ":"),
+                 install_folder])  # Immediately remap the folder for the current session
             print(f"{install_folder} is remapped to {remap_to} unit")
 
-            try:
-                # Add a registry key for remapping the folder at Windows startup
-                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'SOFTWARE\Microsoft\Windows\CurrentVersion\Run', 0, winreg.KEY_ALL_ACCESS)
+            if True:
+                try:
+                    # Add a registry key for remapping the folder at Windows startup
+                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'SOFTWARE\Microsoft\Windows\CurrentVersion\Run', 0,
+                                         winreg.KEY_ALL_ACCESS)
 
-                try:  # If it exists, remove a previously set key value
-                    winreg.DeleteValue(key, _REMAP_REGISTRY_VALUE_NAME)
-                except:
-                    pass
+                    try:  # If it exists, remove a previously set key value
+                        winreg.DeleteValue(key, _REMAP_REGISTRY_VALUE_NAME)
+                    except:
+                        pass
 
-                winreg.SetValueEx(key, _REMAP_REGISTRY_VALUE_NAME, 0, winreg.REG_SZ, f"subst {remap_to.upper()}: {install_folder}")
-                winreg.CloseKey(key)
-            except WindowsError:
-                print("An error has occurred while setting SUBST key registry")
-                exit()
+                    winreg.SetValueEx(key, _REMAP_REGISTRY_VALUE_NAME, 0, winreg.REG_SZ,
+                                      f"subst {remap_to.upper()}: {install_folder}")
+                    winreg.CloseKey(key)
+                except WindowsError:
+                    print("An error has occurred while setting SUBST key registry")
+                    exit()
 
-            install_folder = remap_to+":\\"
+            install_folder = remap_to + ":\\"
         except:
             print(f"An error has occurred while remapping {install_folder} to {remap_to} unit")
             exit()
 
-    return install_folder, release_packages_path
+    if release_folder is not None:
+        release_packages_folder = release_folder + r"\\" + r"\.rez\packages"
+        if not os.path.exists(release_packages_folder):
+            try:
+                os.makedirs(release_packages_folder)
+            except IOError:
+                print(f"An error has occurred while creating remote folder {release_packages_folder}")
+                exit()
+    else:
+        release_packages_folder = None
+
+    return install_folder, release_packages_folder
 
 
-def setup_rezconfig_file(rez_folder, release_packages_path):
+def setup_rezconfig_file(local_packages_folder, release_packages_path):
     """
     Write a rezconfig.py file for packages folder settings and create an env var to let rez reading it
     """
 
-    rez_config_filename = os.path.join(rez_folder, "rezconfig.py")
+    rez_config_filename = os.path.join((os.path.split(local_packages_folder)[0]), "rezconfig.py")
     os.environ["REZ_CONFIG_FILE"] = rez_config_filename
     run(["setx.exe", "REZ_CONFIG_FILE", rez_config_filename])
     print(f"\nREZ_CONFIG_FILE set to: {os.environ.get('REZ_CONFIG_FILE')}\n")
-
-    local_packages_folder = os.path.join(rez_folder, 'packages')
 
     try:
         rez_config_file = open(os.path.join(rez_config_filename), "w+")
@@ -145,18 +156,20 @@ def setup_rezconfig_file(rez_folder, release_packages_path):
         rez_config_file.write(f"#REZ_LOCAL_PACKAGES_PATH\n"
                               f"# The path that Rez will locally install packages to when rez-build is used\n"
                               f"local_packages_path = r\"{local_packages_folder}\"\n")
-        rez_config_file.write(f"#REZ_RELEASE_PACKAGES_PATH\n"
-                              f"# The path that Rez will deploy packages to when rez-release is used. For\n"
-                              f"# production use, you will probably want to change this to a site-wide location.\n"
-                              f"release_packages_path = r\"{release_packages_path}\"")
+        if release_packages_path is not None:
+            rez_config_file.write(f"#REZ_RELEASE_PACKAGES_PATH\n"
+                                  f"# The path that Rez will deploy packages to when rez-release is used. For\n"
+                                  f"# production use, you will probably want to change this to a site-wide location.\n"
+                                  f"release_packages_path = r\"{release_packages_path}\"")
+            os.environ["REZ_RELEASE_PACKAGES_PATH"] = release_packages_path
 
     except IOError:
-        print(f"An error has occurred while creating rezconfig.py inside {rez_folder} ")
+        print(f"An error has occurred while creating rezconfig.py")
         exit()
 
     # Add the packages paths to current env
     os.environ["REZ_LOCAL_PACKAGES_PATH"] = local_packages_folder
-    os.environ["REZ_RELEASE_PACKAGES_PATH"] = release_packages_path
+
     return rez_config_filename
 
 
@@ -192,13 +205,13 @@ def rez_build_machine_packages(rez_bin_folder, python_interpreter_folder):
     run([os.path.join(rez_bin_folder, "rez-bind"), "os"])
 
 
-def install_rez():
+def install_rez(local_folder, unit, release_folder, add_to_path):
     """
     Perform a rez installation on a machine.
     Installation will include a portable WinPython that will be used for 'rez' setup.
     """
 
-    install_folder, release_packages_path = setup_install_folder()  # Get install and release folders
+    install_folder, release_packages_path = setup_folder_structure(local_folder, unit, release_folder)  # Get install and release folders
     utgtools_folder = os.path.join(install_folder, _CORE_DIR)
 
     # Unpack portable WinPython
@@ -218,12 +231,14 @@ def install_rez():
     print("Running rez install.py...")
     run([os.path.join(python_interpreter_folder, "python.exe"), os.path.join(temp_rez_folder, "rez", "install.py"), "-v", os.path.join(utgtools_folder, "rez")])
 
-    # Add installed rez to user's Path env var
     rez_bin_folder = os.path.join(rez_folder, "Scripts", "rez")
-    add_rez_to_path(rez_bin_folder)
+
+    # Add installed rez to user's Path env var
+    if add_to_path:
+        add_rez_to_path(rez_bin_folder)
 
     # Write rezconfig.py file
-    setup_rezconfig_file(rez_folder, release_packages_path)
+    setup_rezconfig_file(os.path.join(rez_folder, 'packages'), release_packages_path)
 
     # rez-build WinPython package (default Python package used by rez) and bind machine packages (platform,arch,os)
     rez_build_machine_packages(rez_bin_folder, python_interpreter_folder)
@@ -251,6 +266,13 @@ def install_rez():
     run(["setx.exe", "UTGTOOLS", utgtools_folder])
     print(f"\nUTGTOOLS env var set\n")
 
+    installation_log_file = open(os.path.join(utgtools_folder, "installation_log.txt"), "w+")
+    installation_log_file.write(f"local folder:{local_folder}\n"
+                                f"map unit:{unit.lower()}\n"
+                                f"install folder:{install_folder}\n"
+                                f"release folder:{release_folder}")
+    installation_log_file.close()
+
     return utgtools_folder
 
 
@@ -273,7 +295,45 @@ def zip_utgtools(utgtools_folder):
     red_rez_zip.close()
 
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(prog="redrez")
+
+    subparsers = parser.add_subparsers(help='Modes', dest='mode', required=True)
+    parser_install = subparsers.add_parser('install', help='Create a new rez setup in the local folder')
+    parser_pack = subparsers.add_parser('pack', help='Pack the existing rez given the local folder in a zip file')
+    parser_deploy = subparsers.add_parser('deploy', help='Unpack and deploy to the local folder a previously zipped rez')
+
+    for p in (parser_install, parser_deploy):
+        p.add_argument("-m", "--map", action="store", type=str, dest="unit",
+                        help="Map the local folder to another disk unit during the install process")
+
+        p.add_argument("-r", "--release", action="store", type=str, dest="release_folder",
+                        help="Set a remote folder as release_packages_path")
+
+        p.add_argument("-p", "--path", action="store_true", dest="add_to_path",
+                       help="Add rez to user Path environment variable")
+
+    parser.add_argument("local_folder", type=str,
+                          help="rez local folder")
+
+    args = parser.parse_args()
+
+    if args.mode == "install":
+        print(f"Creating a new rez setup:\n"
+              f"Local folder: {args.local_folder}\n"
+              f"Map unit: {args.unit}\n"
+              f"Remote packages folder: {args.release_folder}")
+        utgtools_folder = install_rez(args.local_folder, args.unit, args.release_folder, args.add_to_path)
+        print(f"Success - Rez is now ready in: {utgtools_folder}")
+
+    if args.mode == "pack":
+        print(f"Pack stuff contained in {args.local_folder}")
+
+    if args.mode == "deploy":
+        print(f"Unpack zip content to {args.local_folder} and map to {args.unit}")
+
+
 if __name__ == "__main__":
     print(f"RED REZ - Redistributable Rez installer\n")
-    utgtools_folder = install_rez()
-    # zip_utgtools(utgtools_folder)
+    parse_arguments()
+
