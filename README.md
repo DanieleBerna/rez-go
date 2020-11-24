@@ -22,6 +22,24 @@ At first I used the official embeddable Python interpreter but I had some issues
 So I decided to give [WinPython](https://sourceforge.net/projects/winpython/) a chance and bind my rez to it.
 Since I need Python just for have rez working and resolve environments it's fine to use WinPython: once the env is resolved I can use other interpreters from we DCCs we use.
 
+## Usage
+redrez is a command line script: basic usage is:
+`redrez [-h] {install,pack,deploy} ... local_folder`
+where local_folder is the rez directory on user's machine.
+
+At the moment only the *install* subcommand is working and tested.
+
+`usage: redrez install [-h] [-m UNIT] [-r RELEASE_FOLDER] [-p]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -m UNIT, --map UNIT   Map the local folder to another disk unit during the
+                        install process
+  -r RELEASE_FOLDER, --release RELEASE_FOLDER
+                        Set a remote folder as release_packages_path
+  -p, --path            Add rez to user Path environment variable`
+
+
 ### Setup breakdown
 The rez setup performed by red-rez can be summarized as follows: 
 - User must provide a *local install folder*, an unused (and agreed at studio level) *unit letter* and an agreed *remote folder*
@@ -41,5 +59,4 @@ The rez setup performed by red-rez can be summarized as follows:
 ### Redistribution
 At this point it's possible to copy paste the folder containing all (rez,python,packages,launchers) to another machine. If the unit letter is mapped and the REZ_CONFIG_FILE env var points to the correct file, rez will be immediately working on that machine.
 
-## The future
-I'd like to rewrite the script a little in order to pass it some parameters and control the process. I'd also like to add an option that, given a pasted folder, automatically maps the unit and create the REZ_CONFIG_FILE env var, removing the need of that last manual touch :-)
+
