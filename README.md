@@ -29,9 +29,9 @@ where local_folder is the rez directory on user's machine.
 
 At the moment only the *install* subcommand is working and tested.
 
-`usage: redrez install [-h] [-m UNIT] [-r RELEASE_FOLDER] [-p]
+`usage: redrez install [-h] [-m UNIT] [-r RELEASE_FOLDER] [-p]`
 
-optional arguments:
+`optional arguments:
   -h, --help            show this help message and exit
   -m UNIT, --map UNIT   Map the local folder to another disk unit during the
                         install process
