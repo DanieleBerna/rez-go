@@ -339,9 +339,7 @@ def parse_arguments():
     parser_install = subparsers.add_parser('install', help='Create a new rez setup in the local folder')
     parser_update = subparsers.add_parser('update', help='Update installed rez')
     parser_pack = subparsers.add_parser('pack', help='Pack the existing rez given the local folder in a zip file')
-    # parser_deploy = subparsers.add_parser('deploy', help='Unpack and deploy to the local folder a previously zipped rez')
 
-    #for p in (parser_install, parser_deploy):
     parser_install.add_argument("local_folder", type=str, help="rez local folder")
 
     parser_install.add_argument("-r", "--release", action="store", type=str, dest="release_folder",
@@ -351,7 +349,7 @@ def parse_arguments():
                     help="Map the local folder to another disk unit during the install process")
 
     parser_install.add_argument("-p", "--path", action="store_true", dest="add_to_path",
-                   help="Add rez to user Path environment variable")
+                    help="Add rez to user Path environment variable")
 
     parser_install.add_argument("-d", "--download", action="store_true", dest="download_rez",
                                 help="Download latest rez from GitHub")
