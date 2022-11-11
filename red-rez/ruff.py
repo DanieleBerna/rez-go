@@ -1,34 +1,23 @@
-import argparse
+import requests
 
+headers = {
+    "Authorization" : 'token ghp_r5***',
+    "Accept": 'application/vnd.github.v3+json'
+#    "Accept": '*.*',
+}
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(prog="redrez")
+OWNER = 'AcademySoftwareFoundation'
+REPO = 'rez'
 
-    subparsers = parser.add_subparsers(help='Modes', dest='mode', required=True)
-    parser_install = subparsers.add_parser('install', help='Create a new rez setup in the local folder')
-    parser_pack = subparsers.add_parser('pack', help='Pack the existing rez given the local folder in a zip file')
-    parser_deploy = subparsers.add_parser('deploy', help='Unpack and deploy to the local folder a previously zipped rez')
+REF = 'main'  # branch name
+REF = ''      # master/main branch
 
-    for p in (parser_install, parser_deploy):
-        p.add_argument("-m", "--map", action="store", type=str, dest="unit",
-                        help="Map the local folder to another disk unit during the install process")
+EXT = 'zip'
 
-        p.add_argument("-r", "--release", action="store", type=str, dest="release_folder",
-                        help="Set a remote folder as release_packages_path")
+#url = f'https://api.github.com/repos/{OWNER}/{REPO}/{EXT}ball/{REF}'
 
-    parser.add_argument("local_folder", type=str,
-                          help="rez local folder")
+url = "https://github.com/AcademySoftwareFoundation/rez/archive/refs/heads/master.zip"
+print('url:', url)
 
-    args = parser.parse_args()
-
-    if args.mode == "install":
-        print(f"install and map to {args.local_folder} and map to {args.unit}")
-
-    if args.mode == "pack":
-        print(f"Pack stuff contained in {args.local_folder}")
-
-    if args.mode == "deploy":
-        print(f"Unpack zip content to {args.local_folder} and map to {args.unit}")
-
-
-parse_arguments()
+response = requests.get(url)
+open("./rez-master.zip", "wb").write(response.content)
