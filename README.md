@@ -1,13 +1,12 @@
-# red-rez
+# rez-go
 
-**red-rez (*red*istributable *rez*) is a script used to create a working rez system on a Windows machine regardless of any previously installed Python version.
-The created folder can be copy-pasted on other machines too and, with a few hacks, work without issues or complex setup processes.**
+**rez-go is a script used to create a working rez system on a Windows machine regardless of any previously installed Python version.**
 
 ## Introduction
 
 At our studio we use different DCCs, but mostly 3dsmax, Blender and Unreal Engine 4.
-Custom tools can spped up the development and improve our pipeline, but each software uses it's own Python version: managing packages and modules by hand is a pain.
-So one day, suggested by some community members, I decided to solve this problem with *rez*.
+Custom tools can speed up the development and improve our pipeline, but each software uses it's own Python version: managing packages and modules by hand is a pain.
+So I decided to solve this problem with *rez*.
 When I tried to setup rez for the first time on the office Windows machine I encountered some issues, mostly due to some messy Python installation already present on the PC.
 I wanted to install the tool on other machines but every person had his personal setup and manage every specific case by hand was quite tedious.
 
@@ -18,14 +17,13 @@ How to do that?
 
 ### WinPython installed rez
 rez needs python to run. But I can't control Python versions on users' PCs.
-At first I used the official embeddable Python interpreter but I had some issues: it's not *really* portable after all.
 So I decided to give [WinPython](https://sourceforge.net/projects/winpython/) a chance and bind my rez to it.
 Since I need Python just for have rez working and resolve environments it's fine to use WinPython: once the env is resolved I can use other interpreters from we DCCs we use.
 
 ### Setup breakdown
-The rez setup performed by red-rez can be summarized as follows: 
-- User must provide a *local install folder*, an unused (and agreed at studio level) *unit letter* and an agreed *remote folder*
-- The local folder is created if not present and mapped to the unit letter provided using *subst* command: from now on the script always use the new unit for paths, instead of local folder
+The rez setup performed by rez-go can be summarized as follows: 
+- User must provide a *local install folder* and to othe optional arguments: an unused (and agreed at studio level) *unit letter* and an agreed *remote folder*
+- The local folder is created (if not present) and if a unit letter was provided, it's mapped to that using *subst* command. From now on the script always use the new unit for paths, instead of local folder
 - A registry key is added to execute the *subst* command at every Windows startup
 - WinPython is unzipped in the local folder
 - rez is unzipped in a temp folder
