@@ -29,7 +29,7 @@ _DEFAULT_REMOTE_FOLDER = "\\\\" + _SERVER_NAME + "\\" + _TOOLSET_NAME + "\\.rez\
 _LAUNCHERS_DIR = "launchers"
 _PAYLOAD_DIR = "payload"
 _PORTABLE_PYTHON_ZIP = "winpython_395.zip"  # zipped archive of WinPython portable interpreter
-_REZ_ZIP = "rez-master.zip"  # zipped archive of Rez (cloned from https://github.com/AcademySoftwareFoundation/rez )
+_REZ_ZIP = "rez.zip"  # zipped archive of Rez (cloned from https://github.com/AcademySoftwareFoundation/rez )
 
 
 def set_env_variable(name, value):
@@ -224,12 +224,31 @@ def install_portable_python(core_folder):
     return True
 
 
+def download_rez_release(download_to_filepath, latest=True):
+    """
+    Download official release from rez GitHub
+    default is latest release
+    """
+    url = "https://api.github.com/repos/AcademySoftwareFoundation/rez/releases/latest"
+    try:
+        response = requests.get(url)
+        version = response.json()["name"]
+        print(f"Downloading rez version: {version}")
+        download_url = response.json()["zipball_url"]
+        response = requests.get(download_url)
+        open(f"./{download_to_filepath}", "wb").write(response.content)
+        return download_to_filepath
+    except Exception as e:
+        print(e)
+        return None
+
+
 def deploy_rez(install_folder, remote_folder, write_rezconfig, add_to_path=False, download=True):
     """
     Perform a rez installation on a machine.
-    Installation will include a portable WinPython that will be used for 'rez' setup.
     """
 
+    # Search python interpreter
     python_folder = os.path.join(install_folder, "python")  # installed python needed for rez setup
     if not os.path.exists(python_folder):  # if toolset python is not present, install it
         print(f"Python interpreter not found in {install_folder}: install it before deploying rez")
@@ -238,20 +257,25 @@ def deploy_rez(install_folder, remote_folder, write_rezconfig, add_to_path=False
     rez_zip_filepath = os.path.join(os.path.dirname(sys.argv[0]), _PAYLOAD_DIR, _REZ_ZIP)
     # Download latest rez from AcademySoftwareFoundation GitHub
     if download:
-        url = "https://github.com/AcademySoftwareFoundation/rez/archive/refs/heads/master.zip"
-        print(f"Downloading rez from: {url}")
-        response = requests.get(url)
-        open(f"./{rez_zip_filepath}", "wb").write(response.content)
+        rez_zip_filepath = download_rez_release(rez_zip_filepath)
+
     # Unpack rez
     temp_rez_folder = (os.path.join(install_folder, "temp_rez"))
+    print(f"TEMP REZ FOLDER: {temp_rez_folder}")
+    rez_zip_root_folder = "rez-master"
     print("Extracting rez source...")
+
     with zipfile.ZipFile(rez_zip_filepath, 'r') as zip_ref:
         zip_ref.extractall(temp_rez_folder)
-    rez_folder = os.path.join(install_folder, "rez")
+        rez_zip_root_folder = [info.filename for info in zip_ref.infolist() if info.is_dir()][0].split("/")[0]
 
     # Run rez install.py using WinPython, to permanently link rez to this interpreter
     print("Running rez install.py...")
-    run([os.path.join(python_folder, "python.exe"), os.path.join(temp_rez_folder, "rez-master", "install.py"), "-v", rez_folder])
+    rez_folder = os.path.join(install_folder, "rez")
+    print(f"TEMP REZ FOLDER: {temp_rez_folder}")
+    print(f"ROOT REZ FOLDER: {rez_zip_root_folder}")
+    print(f"SETUP PY FOLDER: {os.path.join(temp_rez_folder, rez_zip_root_folder)}")
+    run([os.path.join(python_folder, "python.exe"), os.path.join(temp_rez_folder, rez_zip_root_folder, "install.py"), "-v", rez_folder])
 
     rez_bin_folder = os.path.join(rez_folder, "Scripts", "rez")
 
@@ -372,7 +396,7 @@ def parse_arguments():
                 rmtree(os.path.join(toolset_folder, _CORE_DIR, "rez"))
             except OSError as e:
                 print(f"Error while removing old rez:  {e.strerror}")
-        pass
+        # deploy_rez(os.path.join(_TOOLSET_NAME, _CORE_DIR), remote_folder, True, False, download_rez)
 
     if args.mode == "pack":
         print(f"Pack stuff contained in {args.local_folder}")
@@ -382,6 +406,6 @@ def parse_arguments():
 
 
 if __name__ == "__main__":
-    print(f"RED REZ - Redistributable Rez installer\n")
+    print(f"REZ GO! - Quick Rez installer\n")
     parse_arguments()
 

@@ -157,3 +157,4 @@ dmypy.json
 .idea/
 
 /rez-go/rezgo.zip
+/rez-go/temp/
