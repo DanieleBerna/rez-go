@@ -52,7 +52,8 @@ def create_python_package_file(interpreter_folder, version):
         package_build_file = open(os.path.join(interpreter_folder, "package.py"), "w+")
         package_build_file.write(f"import os\n\nname = 'python'\nversion = '{version}'\nbuild_command = '{{root}}/python {{root}}/rezbuild.py {{install}}'\n\n"
                                  f"def commands():\n\t"
-                                 f"env.PATH.append('{{root}}')\n\t"
+                                 f"if not env.PYTHON_NOOP:\n\t\t"
+                                 f"env.PATH.append('{{root}}')\n\t\t"
                                  f"env.PYTHONPATH.append('{{root}}')\n")
         package_build_file.close()
     except IOError as e:
@@ -408,4 +409,5 @@ def parse_arguments():
 if __name__ == "__main__":
     print(f"REZ GO! - Quick Rez installer\n")
     parse_arguments()
+
 
