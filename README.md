@@ -5,8 +5,8 @@ The created folder can be copy-pasted on other machines too and, with a few hack
 
 ## Introduction
 
-At our studio we use different DCCs, but mostly 3dsmax, Blender and Unreal Engine 4.
-Custom tools can spped up the development and improve our pipeline, but each software uses it's own Python version: managing packages and modules by hand is a pain.
+At our studio we use different DCCs, but mostly Blender and Unreal Engine, both 4 and 5 version.
+Custom tools can speed up the development and improve our pipeline, but each software uses it's own Python version: managing packages and modules by hand is a pain.
 So one day, suggested by some community members, I decided to solve this problem with *rez*.
 When I tried to setup rez for the first time on the office Windows machine I encountered some issues, mostly due to some messy Python installation already present on the PC.
 I wanted to install the tool on other machines but every person had his personal setup and manage every specific case by hand was quite tedious.
